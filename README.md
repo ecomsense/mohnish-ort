@@ -3,53 +3,46 @@
 #### Step-by-Step Strategy:
 
 1. **Initial Entry:**
-   - Take 1 lot (configurable quantity) of short straddle on Bank Nifty at 9:30 AM.
-     - The entry time should be configurable.
+   - Take 1 lot (configurable quantity) of short straddle on Bank Nifty at a specified entry time (configurable).
 
 2. **Stop Loss Setup:**
    - Set a stop loss (SL) for 2 lots (configurable quantity) at 60 points on each side (Call and Put).
      - The 60 points SL is per leg and should be configurable.
      - If the SL is hit on either side, you will have 1 lot of a buy position on the same side and 1 lot of a sell position on the opposite side.
 
-3. **Post Stop Loss Adjustment:**
-   - If the SL is hit on either side (Call or Put), adjust positions as follows:
-     - Example: If the Call SL is hit, you will have 1 lot of bought Call and 1 lot of sold Put.
-   - Place a new SL for double the initial quantity (2 lots, configurable) at 60 points on the newly bought position only.
-     - The 60 points SL is calculated from the new entry point of the remaining bought position.
-   - If a new sell position is initiated after the SL hits on the buy side, create a new SL at 60 points (configurable) for this sell position.
+3. **Monitoring Support and Resistance Levels:**
+   - Support and resistance levels for Bank Nifty and other monitored stocks (HDFC, ICICI, SBI, AXIS) are predefined and read-only at the start.
+   - Note down the current price of these stocks when the stop loss is hit, and this will be between the predefined support and resistance levels.
 
-4. **Monitoring Support and Resistance Levels:**
-   - Support and resistance levels for Bank Nifty, HDFC, ICICI, SBI, and AXIS Bank are predefined in a `settings.yml` file, initialized at the start.
-   - When the SL is hit and positions are adjusted (step 3), note down the current price of Bank Nifty and other monitored stocks.
+4. **Exit Condition Based on Support and Resistance:**
+   - Exit the buy Call Position (CE) if:
+     - The current price of Bank Nifty crosses above the predefined resistance level or crosses below the predefined support level.
+     - The price of the monitored stock crosses above its respective resistance level or drops below its respective support level.
+   - Exit the buy Put Position (PE) if:
+     - The current price of Bank Nifty drops below the predefined support level or crosses above the predefined resistance level.
+     - The price of the monitored stock drops below its respective support level or crosses above its respective resistance level.
+   - If any of these conditions are met, exit the respective position and proceed to the next step.
 
-5. **Exit Condition Based on Support and Resistance Breach:**
-   - If the SL is hit and the current price of the stocks breaches a predefined resistance level (for Call) or support level (for Put), exit all positions.
-     - For **Call Position**: If the current price is above the predefined resistance level, exit all positions.
-     - For **Put Position**: If the current price is below the predefined support level, exit all positions.
-   - After exiting all positions, prepare for re-entry based on the initial entry conditions.
-
-6. **Re-entry Configuration:**
-   - Re-enter the short straddle from the beginning, following steps 1 to 4.
-   - The number of re-entries should be configurable. Define how many times the strategy should attempt to re-enter after an exit.
+5. **Sell Another Option (CE or PE) with ATM Strike:**
+   - After the SL is hit and positions are adjusted:
+     - **For Call Position (CE):** Sell another Call option (CE) with an ATM (At The Money) strike price.
+       - Place a new SL for double the initial quantity (2 lots, configurable) at 60 points.
+     - **For Put Position (PE):** Sell another Put option (PE) with an ATM (At The Money) strike price.
+       - Place a new SL for double the initial quantity (2 lots, configurable) at 60 points.
 
 ### Example Workflow:
 
 1. **Initial Entry:**
-   - Enter 1 lot (configurable quantity) of short straddle on Bank Nifty at 9:30 AM (configurable).
+   - Enter 1 lot (configurable quantity) of short straddle on Bank Nifty at the specified entry time.
 
 2. **Stop Loss Setup:**
    - Set SL for 2 lots (configurable quantity) at 60 points (configurable) for both Call and Put.
-   - If the SL is hit on either side, you will have 1 lot of a buy position on the same side and 1 lot of a sell position on the opposite side.
+   - If the SL is hit on either side, adjust positions accordingly and note down the current prices of monitored stocks.
 
-3. **SL Hit:**
-   - Suppose the Call SL is hit:
-     - You now have 1 lot of bought Call and 1 lot of sold Put.
-   - Place a new SL for double the initial quantity (2 lots, configurable) at 60 points (configurable) on the bought Call position.
+3. **Monitor SR Levels:**
+   - When the current price of Bank Nifty or monitored stocks crosses above the predefined resistance level or drops below the predefined support level, exit the buy Call or Put position accordingly.
 
-4. **Monitor SR Levels:**
-   - When the current price of Bank Nifty and other stocks breaches the predefined resistance level (for Call) or support level (for Put), exit all positions.
-   - After exiting, prepare for re-entry based on the initial entry conditions.
-
-5. **Re-Entry:**
-   - Re-enter the short straddle from the beginning, following steps 1 to 4.
-   - Repeat the re-entry process according to the configured number of re-entries.
+4. **Sell Another Option (CE or PE) with ATM Strike:**
+   - After the SL is hit and positions are adjusted:
+     - **For Call Position (CE):** Sell another Call option (CE) with an ATM strike price and set a new SL for double the initial quantity at 60 points.
+     - **For Put Position (PE):** Sell another Put option (PE) with an ATM strike price and set a new SL for double the initial quantity at 60 points.
