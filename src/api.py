@@ -64,7 +64,7 @@ def ord_to_pos(df):
 
 
 def get_bypass():
-    from omspy_brokers.bypass import Bypass
+    from stock_brokers.bypass.bypass import Bypass
 
     try:
         dct = O_CNFG["bypass"]
@@ -93,7 +93,7 @@ def get_bypass():
 
 def get_zerodha():
     try:
-        from omspy_brokers.zerodha import Zerodha
+        from stock_brokers.zerodha.zerodha import Zerodha
 
         dct = O_CNFG["zerodha"]
         zera = Zerodha(
