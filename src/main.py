@@ -1,41 +1,34 @@
 from constants import logging, O_SETG
+from symbols import dump
 from wsocket import Wsocket
-import universe
-from symbols import Symbol
 from typing import Dict
 from types import SimpleNamespace
 from traceback import print_exc
 
 
-def do(task):
-    raise NotImplementedError
-
-
-def run(tasks):
-    """
-    repetitive tasks that will
-    run again and again
-    """
-    while True:
-        tasks.oc.update(tasks.ws.ltp(list(tasks.oc.keys())))
-        for task in tasks:
-            do(task)
-
-
 def main():
     try:
         logging.info("HAPPY TRADING")
+        dict_of_symbol_token = dump()
+
         """
-        description:
-            initialize singletons here
-            also consume globals if any here
+        # TODO  wsocket should be initiated without params
+        # ws: object = Wsocket()
         """
-        # initialize websocket
-        ws: object = Wsocket(O_SETG["kite"], O_SETG["sym_tkn"])
+        for k, v in dict_of_symbol_token["NSE"].items():
+            print(k, v)
+            # TO DO
+            # get ltp for indices and update the dict_of_symbol_token
+            # then use it to find atm and option chain
+
+        """
         # passing token should provide the ltp of underlying banknifty
         ltp = ws.ltp(["NSE|###"])
 
+        # update the ltps
+
         # initialize symbol object
+        # use symbol class from symbols.py to get tradingsymbols as a list
         symbol: object = Symbol(O_SETG["exchange"], O_SETG["symbol"], O_SETG["expiry"])
         atm = symbol.calc_atm_from_ltp(ltp)
         oc: Dict = symbol.build_option_chain(atm)
@@ -51,8 +44,7 @@ def main():
             oc=oc,
             sr=sr,
         )
-        while O_SETG["start"]:
-            run(tasks)
+        """
 
     except Exception as e:
         print(e)

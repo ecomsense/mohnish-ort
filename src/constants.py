@@ -62,7 +62,7 @@ def yml_to_obj(arg=None):
 
     if not flag and arg:
         print(f"using default {file=}")
-        O_FUTL.copy_file("../", "../data/", "settings.yml")
+        O_FUTL.copy_file("../factory/", "../data/", "settings.yml")
     elif not flag and arg is None:
         print(f"fill the {file=} file and try again")
         __import__("sys").exit()
@@ -74,20 +74,24 @@ def read_yml():
     try:
         O_CNFG = yml_to_obj()
         O_SETG = yml_to_obj("settings.yml")
+        D_SYMBOL = yml_to_obj("symbols.yml")
     except Exception as e:
         print(e)
         print_exc()
         __import__("sys").exit(1)
     else:
-        return O_CNFG, O_SETG
+        return O_CNFG, O_SETG, D_SYMBOL
 
 
-O_CNFG, O_SETG = read_yml()
+O_CNFG, O_SETG, D_SYMBOL = read_yml()
 print("broker credentials" + "\n" + "*****************")
 pprint(O_CNFG)
 
 print("settings " + "\n" + "*****************")
 pprint(O_SETG)
+
+print("symbols " + "\n" + "*****************")
+pprint(D_SYMBOL)
 
 
 def set_logger():

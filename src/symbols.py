@@ -1,39 +1,7 @@
+from constants import D_SYMBOL, O_FUTL, S_DATA
 import pandas as pd
-import re
-from toolkit.fileutils import Fileutils
-from typing import List, Union
 from traceback import print_exc
-
-dct_sym = {
-    "NIFTY": {
-        "diff": 50,
-        "index": "Nifty 50",
-        "exch": "NSE",
-        "token": "256265",
-        "depth": 16,
-    },
-    "BANKNIFTY": {
-        "diff": 100,
-        "index": "Nifty Bank",
-        "exch": "NSE",
-        "token": "260105",
-        "depth": 25,
-    },
-    "MIDCPNIFTY": {
-        "diff": 100,
-        "index": "NIFTY MID SELECT",
-        "exch": "NSE",
-        "token": "288009",
-        "depth": 21,
-    },
-    "FINNIFTY": {
-        "diff": 50,
-        "index": "Nifty Fin Services",
-        "exch": "NSE",
-        "token": "257801",
-        "depth": 16,
-    },
-}
+from typing import Dict, List, Any, Union
 
 
 class Symbol:
@@ -55,22 +23,8 @@ class Symbol:
         self.exchange = exchange
         self.symbol = symbol
         self.expiry = expiry
-        self.csvfile = f"../data/{self.exchange}_symbols.csv"
-        self.dump_master_by_exchange()
 
-    def dump_master_by_exchange(self):
-        try:
-            if Fileutils().is_file_not_2day(self.csvfile):
-                url = f"https://api.kite.trade/instruments/{self.exchange}"
-                df = pd.read_csv(url)
-                df.drop(columns=["name", "last_price"], inplace=True)
-                df.to_csv(self.csvfile, index=False)
-        except Exception as e:
-            print(e)
-            print_exc()
-            SystemExit(1)
-
-    def find_token_from_dump(self, args: Union[List[str], int]):
+    def build_chain(self, args: Union[List[str], int]):
         """
         finds token from data dir csv dump
         parameter:
@@ -129,3 +83,33 @@ class Symbol:
         if ltp - current_strike < next_higher_strike - ltp:
             return int(current_strike)
         return int(next_higher_strike)
+
+
+def get_symbols(exchange: str) -> Dict[str, Dict[str, Any]]:
+    try:
+        info = {}
+        url = f"https://api.kite.trade/instruments/{exchange}"
+        df = pd.read_csv(url)
+        # keep only tradingsymbol and instrument_token
+        df = df[["tradingsymbol", "instrument_token"]].rename(
+            columns={"tradingsymbol": "symbol", "instrument_token": "token"}
+        )
+        info = df.to_dict(orient="records")
+        # flatten list in dictionary values
+        info = {exchange: items for items in info}
+    except Exception as e:
+        print(e)
+        print_exc()
+    finally:
+        return info
+
+
+def dump():
+    dump_file = S_DATA + "symbols.json"
+    if O_FUTL.is_file_not_2day(dump_file):
+        exchanges = D_SYMBOL.pop("exchanges", None)
+        for exchange in exchanges:
+            D_SYMBOL.update(get_symbols(exchange))
+
+    O_FUTL.write_file(S_DATA + "symbols.json", D_SYMBOL)
+    return D_SYMBOL
