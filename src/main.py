@@ -4,6 +4,7 @@ from wsocket import Wsocket
 from typing import Dict
 from types import SimpleNamespace
 from traceback import print_exc
+from time import sleep
 
 
 def ltp_from_ws_response(exchange, tradingsymbol, resp):
@@ -25,7 +26,7 @@ def root():
         # download necessary masters
         dump()
 
-        # TODO  wsocket should be initiated without params
+        # subscribing from yml files automtically
         ws: object = Wsocket()
         resp = False
         while not resp:
@@ -34,35 +35,25 @@ def root():
             print(resp)
             bn_ltp = ltp_from_ws_response("NSE", "NIFTY BANK", resp)
 
-        # TO DO
-        # get ltp for indices and update the dict_of_symbol_token
         # then use it to find atm and option chain
-        #
         if bn_ltp:
-            lst = build_chain("NSE", "BANKNIFTY", "24JUL")
+            lst = build_chain("BANKNIFTY", "24JUL")
             print(lst)
-            pass
+            # we are subscribing now only for options
+            resp = ws.ltp(lst)
+            print(resp)
+
+        # TODO for demo can be removed
+        while True:
+            # we should get the option prices here
+            resp = ws.ltp([])
+            sleep(10)
 
         """
-        # passing token should provide the ltp of underlying banknifty
-        ltp = ws.ltp(["NSE|###"])
-
-        # update the ltps
-
-        # initialize symbol object
-        # use symbol class from symbols.py to get tradingsymbols as a list
-        symbol: object = Symbol(O_SETG["exchange"], O_SETG["symbol"], O_SETG["expiry"])
-        atm = symbol.calc_atm_from_ltp(ltp)
-        oc: Dict = symbol.build_option_chain(atm)
-
-        # dictionary should contain token and SR levels
-        sr: Dict = universe.main()
-
         # we create a namespace so that dictionaries values
         # can be accessed like properties
         tasks = SimpleNamespace(
             ws=ws,
-            symbol=symbol,
             oc=oc,
             sr=sr,
         )

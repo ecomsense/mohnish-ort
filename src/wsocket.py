@@ -20,21 +20,18 @@ class Wsocket:
 
     def ltp(self, tokens):
         if any(tokens):
-            self.tokens = [v for k, v in tokens.items() if k == "instrument_token"]
+            self.tokens = [dct["instrument_token"] for dct in tokens]
         return self.ticks
 
     def on_ticks(self, ws, response):
-        print(response)
         if any(self.tokens):
             ws.subscribe(self.tokens)
             self.tokens = []
         if response:
-            dct = {str(res["instrument_token"]): res["last_price"] for res in response}
-            for old in self.ticks:
-                token = str(old["instrument_token"])
-                old["last_price"] = dct[token]
-            else:
-                self.ticks = response
+            self.ticks = [
+                dict(zip(["instrument_token", "last_price"], dct)) for dct in response
+            ]
+            print(self.ticks)
 
     def on_connect(self, ws, response):
         # Callback on successful connect.
