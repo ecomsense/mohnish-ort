@@ -1,25 +1,47 @@
-from constants import logging, O_SETG
-from symbols import dump
+from constants import logging, D_SYMBOL
+from symbols import dump, build_chain
 from wsocket import Wsocket
 from typing import Dict
 from types import SimpleNamespace
 from traceback import print_exc
 
 
-def main():
+def ltp_from_ws_response(exchange, tradingsymbol, resp):
+    # get instrument token from symbol dictionaries
+    bn_token = [
+        d["instrument_token"]
+        for k, d in D_SYMBOL.items()
+        if k == exchange and d["tradingsymbol"] == tradingsymbol
+    ][0]
+    #  get ltp for banknifty from wsocket response
+    bn_ltp = [d["last_price"] for d in resp if d["instrument_token"] == bn_token][0]
+    print(tradingsymbol, bn_ltp)
+    return bn_ltp
+
+
+def root():
     try:
         logging.info("HAPPY TRADING")
-        dict_of_symbol_token = dump()
+        # download necessary masters
+        dump()
 
-        """
         # TODO  wsocket should be initiated without params
-        # ws: object = Wsocket()
-        """
-        for k, v in dict_of_symbol_token["NSE"].items():
-            print(k, v)
-            # TO DO
-            # get ltp for indices and update the dict_of_symbol_token
-            # then use it to find atm and option chain
+        ws: object = Wsocket()
+        resp = False
+        while not resp:
+            resp = ws.ltp([])
+        else:
+            print(resp)
+            bn_ltp = ltp_from_ws_response("NSE", "NIFTY BANK", resp)
+
+        # TO DO
+        # get ltp for indices and update the dict_of_symbol_token
+        # then use it to find atm and option chain
+        #
+        if bn_ltp:
+            lst = build_chain("NSE", "BANKNIFTY", "24JUL")
+            print(lst)
+            pass
 
         """
         # passing token should provide the ltp of underlying banknifty
@@ -51,4 +73,5 @@ def main():
         print_exc()
 
 
-main()
+if __name__ == "__main__":
+    root()

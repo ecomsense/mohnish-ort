@@ -125,15 +125,16 @@ def login():
 
 
 class Helper:
-    api = None
+    api_object = None
     buy = []
     short = []
     orders = []
 
     @classmethod
-    def set_api(cls):
-        if cls.api is None:
-            cls.api = login()
+    def api(cls):
+        if cls.api_object is None:
+            cls.api_object = login()
+        return cls.api_object
 
     @classmethod
     def exit(cls, buy_or_short: str):
@@ -147,7 +148,7 @@ class Helper:
                     i["side"] = "S" if side == "B" else "B"
                     i["tag"] = "exit"
                     if CMMN["live"]:
-                        resp = cls.api.order_place(**i)
+                        resp = cls.api().order_place(**i)
                         print(resp)
                     else:
                         cls.orders.append(i)
@@ -175,7 +176,7 @@ class Helper:
                 o["product"] = "NRML"
                 logging.debug(o)
                 if CMMN["live"]:
-                    resp = cls.api.order_place(**o)
+                    resp = cls.api().order_place(**o)
                     print(resp)
                 else:
                     args = [
@@ -197,7 +198,7 @@ class Helper:
     @classmethod
     def positions(cls):
         if O_SETG["live"]:
-            return cls.api.positions
+            return cls.api().positions
         elif any(cls.orders):
             df = pd.DataFrame(cls.orders)
             df.to_csv(S_DATA + "orders.csv", index=False)
@@ -209,9 +210,8 @@ class Helper:
 
 
 if __name__ == "__main__":
-    Helper.set_api()
-    resp = Helper.api.positions
+    resp = Helper.api().positions
     pd.DataFrame(resp).to_csv(S_DATA + "positions.csv", index=False)
 
-    resp = Helper.api.orders
+    resp = Helper.api().orders
     pd.DataFrame(resp).to_csv(S_DATA + "orders.csv", index=False)

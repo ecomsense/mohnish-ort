@@ -22,60 +22,7 @@ class Symbol:
     def __init__(self, exchange: str, symbol: str, expiry: str):
         self.exchange = exchange
         self.symbol = symbol
-        self.expiry = expiry
-
-    def build_chain(self, args: Union[List[str], int]):
-        """
-        finds token from data dir csv dump
-        parameter:
-            input: list of exchange:symbols or atm as integer
-            output: dictionary with symbol key and token as value
-        """
-        try:
-            df = pd.read_csv(self.csvfile)
-            lst = []
-            if isinstance(args, list):
-                for args in args:
-                    exch = args.split(":")[0]
-                    sym = args.split(":")[1]
-                    if exch == self.exchange:
-                        lst.append(sym)
-            elif isinstance(args, int):
-                lst.append(self.symbol + self.expiry + str(args) + "CE")
-                lst.append(self.symbol + self.expiry + str(args) + "PE")
-                for v in range(1, dct_sym[self.symbol]["depth"]):
-                    lst.append(
-                        self.symbol
-                        + self.expiry
-                        + str(args + v * dct_sym[self.symbol]["diff"])
-                        + "CE"
-                    )
-                    lst.append(
-                        self.symbol
-                        + self.expiry
-                        + str(args + v * dct_sym[self.symbol]["diff"])
-                        + "PE"
-                    )
-                    lst.append(
-                        self.symbol
-                        + self.expiry
-                        + str(args - v * dct_sym[self.symbol]["diff"])
-                        + "CE"
-                    )
-                    lst.append(
-                        self.symbol
-                        + self.expiry
-                        + str(args - v * dct_sym[self.symbol]["diff"])
-                        + "PE"
-                    )
-            else:
-                raise ValueError(f"str({args}) must be list or int")
-            df = df[df["tradingsymbol"].isin(lst)]
-            return dict(zip(df["tradingsymbol"], df["instrument_token"]))
-        except Exception as e:
-            print(f"find_token_from_dump: {e}")
-            print_exc()
-            SystemExit(1)
+        expiry = expiry
 
     def calc_atm_from_ltp(self, ltp) -> int:
         current_strike = ltp - (ltp % dct_sym[self.symbol]["diff"])
@@ -91,9 +38,7 @@ def get_symbols(exchange: str) -> Dict[str, Dict[str, Any]]:
         url = f"https://api.kite.trade/instruments/{exchange}"
         df = pd.read_csv(url)
         # keep only tradingsymbol and instrument_token
-        df = df[["tradingsymbol", "instrument_token"]].rename(
-            columns={"tradingsymbol": "symbol", "instrument_token": "token"}
-        )
+        df = df[["tradingsymbol", "instrument_token"]]
         info = df.to_dict(orient="records")
         # flatten list in dictionary values
         info = {exchange: items for items in info}
@@ -105,11 +50,65 @@ def get_symbols(exchange: str) -> Dict[str, Dict[str, Any]]:
 
 
 def dump():
+    sym_from_yml = O_FUTL.get_lst_fm_yml(S_DATA + "symbols.yml")
     dump_file = S_DATA + "symbols.json"
     if O_FUTL.is_file_not_2day(dump_file):
-        exchanges = D_SYMBOL.pop("exchanges", None)
+        exchanges = sym_from_yml.pop("exchanges", None)
         for exchange in exchanges:
-            D_SYMBOL.update(get_symbols(exchange))
+            sym_from_yml.update(get_symbols(exchange))
+        O_FUTL.write_file(S_DATA + "symbols.json", sym_from_yml)
 
-    O_FUTL.write_file(S_DATA + "symbols.json", D_SYMBOL)
-    return D_SYMBOL
+
+def dict_from_yml(index_exchange, key_to_search, value_to_match):
+    try:
+        sym_from_yml = O_FUTL.get_lst_fm_yml(S_DATA + "symbols.yml")
+        dct = [
+            d
+            for k, d in sym_from_yml.items()
+            if k == index_exchange and d[key_to_search] == value_to_match
+        ][0]
+        print(f"{dct=}")
+        return dct
+    except Exception as e:
+        print(e)
+        print_exc()
+
+
+def tokens_from_symbols(symbols: List[str]) -> List[str]:
+    try:
+        symbols_from_json = O_FUTL.read_file(S_DATA + "symbols.json")
+        bn_from_json = [
+            dct
+            for k, dct in symbols_from_json.items()
+            if k == "NFO" and dct["tradingsymbol"].startswith("BANKNIFTY")
+        ]
+        print(bn_from_json)
+        """
+        filter = [
+            item for item in symbols_from_json if item["tradingsymbol"] in symbols
+        ]
+        print(filter)
+        """
+        return symbols_from_json
+    except Exception as e:
+        print(e)
+
+
+def build_chain(index_exchange, base, expiry):
+    try:
+        dct = dict_from_yml(index_exchange, "base", base)
+        atm = 46000
+        lst = []
+        lst.append(base + expiry + str(atm) + "CE")
+        lst.append(base + expiry + str(atm) + "PE")
+        for v in range(1, dct["depth"]):
+            lst.append(base + expiry + str(atm + v * dct["diff"]) + "CE")
+            lst.append(base + expiry + str(atm + v * dct["diff"]) + "PE")
+            lst.append(base + expiry + str(atm - v * dct["diff"]) + "CE")
+            lst.append(base + expiry + str(atm - v * dct["diff"]) + "PE")
+        filter = tokens_from_symbols(lst)
+        return filter
+    except Exception as e:
+        print(f"build chain error: {e}")
+        print_exc()
+        SystemExit(1)

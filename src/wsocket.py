@@ -1,16 +1,12 @@
-from constants import logging
+from constants import D_SYMBOL, logging
+from api import Helper
 
 
 class Wsocket:
-    def __init__(self, kite, sym_tkn):
-        self.instrument = ""
+    def __init__(self):
         self.ticks = []
-        self.kws = kite.kws()
-        if isinstance(sym_tkn, list):
-            self.sym_tkn = sym_tkn
-        else:
-            self.sym_tkn = [738561]
-        # Assign the callbacks.
+        self.tokens = []
+        self.kws = Helper.api().kite.kws()
         self.kws.on_ticks = self.on_ticks
         self.kws.on_connect = self.on_connect
         self.kws.on_close = self.on_close
@@ -22,18 +18,33 @@ class Wsocket:
         # You have to use the pre-defined callbacks to manage subscriptions.
         self.kws.connect(threaded=True)
 
-    def on_ticks(self, ws, ticks):
-        # Callback to receive ticks.
-        if ticks:
-            self.ticks = ticks
+    def ltp(self, tokens):
+        if any(tokens):
+            self.tokens = [v for k, v in tokens.items() if k == "instrument_token"]
+        return self.ticks
+
+    def on_ticks(self, ws, response):
+        print(response)
+        if any(self.tokens):
+            ws.subscribe(self.tokens)
+            self.tokens = []
+        if response:
+            dct = {str(res["instrument_token"]): res["last_price"] for res in response}
+            for old in self.ticks:
+                token = str(old["instrument_token"])
+                old["last_price"] = dct[token]
+            else:
+                self.ticks = response
 
     def on_connect(self, ws, response):
         # Callback on successful connect.
         # Subscribe to a list of instrument_tokens (RELIANCE and ACC here).
-        ws.subscribe(self.sym_tkn)
+        nse_symbols = D_SYMBOL["NSE"]
+        self.tokens = [v for k, v in nse_symbols.items() if k == "instrument_token"]
+        ws.subscribe(self.tokens)
 
         # Set RELIANCE to tick in `full` mode.
-        ws.set_mode(ws.MODE_LTP, self.sym_tkn)
+        ws.set_mode(ws.MODE_LTP, self.tokens)
 
     def on_close(self, ws, code, reason):
         # On connection close stop the main loop
