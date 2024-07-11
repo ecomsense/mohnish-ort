@@ -1,13 +1,10 @@
 exchanges:
   - NFO
 NSE:
-    symbol: NIFTY BANK
+    tradingsymbol: NIFTY BANK
     base: BANKNIFTY
     diff: 50
-    depth: 20,
-    exchange: NSE
+    depth: 20
+    exchange: NFO
     expiry: 24JUL
-    token: 260105
-
-
-
+    instrument_token: 260105

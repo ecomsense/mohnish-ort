@@ -1,5 +1,19 @@
 from constants import D_SYMBOL, logging
 from api import Helper
+from typing import List, Dict
+
+
+def filter_ws_keys(incoming: List[Dict]) -> List[Dict]:
+    keys = ["instrument_token", "last_price"]
+    new_lst = []
+    if incoming and isinstance(incoming, list) and any(incoming):
+        for dct in incoming:
+            new_dct = {}
+            for key in keys:
+                if dct.get(key, None):
+                    new_dct[key] = dct[key]
+            new_lst.append(new_dct)
+    return new_lst
 
 
 class Wsocket:
@@ -18,28 +32,26 @@ class Wsocket:
         # You have to use the pre-defined callbacks to manage subscriptions.
         self.kws.connect(threaded=True)
 
-    def ltp(self, tokens):
+    def ltp(self, tokens=[]):
         if any(tokens):
             self.tokens = [dct["instrument_token"] for dct in tokens]
+            print(self.tokens)
         return self.ticks
 
-    def on_ticks(self, ws, response):
+    def on_ticks(self, ws, ticks):
         if any(self.tokens):
             ws.subscribe(self.tokens)
             self.tokens = []
-        if response:
-            self.ticks = [
-                dict(zip(["instrument_token", "last_price"], dct)) for dct in response
-            ]
-            print(self.ticks)
+        self.ticks = filter_ws_keys(ticks)
+        print(self.ticks)
 
     def on_connect(self, ws, response):
-        # Callback on successful connect.
-        # Subscribe to a list of instrument_tokens (RELIANCE and ACC here).
+        if response:
+            print(f"on connect: {response}")
+        # Subscribe to a list of instrument_tokens (Index first).
         nse_symbols = D_SYMBOL["NSE"]
         self.tokens = [v for k, v in nse_symbols.items() if k == "instrument_token"]
         ws.subscribe(self.tokens)
-
         # Set RELIANCE to tick in `full` mode.
         ws.set_mode(ws.MODE_LTP, self.tokens)
 
