@@ -1,0 +1,5 @@
+broker: bypass
+bypass:
+  userid: <userid>
+  password: <password>
+  totp: <totp key>

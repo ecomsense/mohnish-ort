@@ -1,5 +1,6 @@
-from constants import logging, D_SYMBOL
-from symbols import dump, build_chain, dict_from_yml
+from constants import logging
+from symbols import dump, dict_from_yml
+from symbols import Symbols
 from wsocket import Wsocket
 from typing import Dict
 from types import SimpleNamespace
@@ -21,26 +22,29 @@ def root():
         # download necessary masters
         dump()
 
-        # subscribing from yml files automtically
+        # subscribing index from symbols.yml automtically
         ws: object = Wsocket()
         resp = False
+        #  wait for index to give ltp
         while not resp:
-            resp = ws.ltp([])
+            resp = ws.ltp()
         else:
+            # extract a dictionary from symbol yml, given the key, value
             dct = dict_from_yml("base", "BANKNIFTY")
+            # decipher ltp from instrument token
             bn_ltp = ltp_from_ws_response(dct["instrument_token"], resp)
 
         # then use it to find atm and option chain
         if bn_ltp:
-            lst = build_chain("BANKNIFTY", "24JUL")
+            bn = Symbols(**dct)
+            lst = bn.build_chain("24JUL", bn_ltp)
             # we are subscribing now only for options
             resp = ws.ltp(lst)
-            print(resp)
 
         # TODO for demo can be removed
         while True:
             # we should get the option prices here
-            resp = ws.ltp([])
+            resp = ws.ltp()
             print(resp)
             sleep(1)
 
@@ -59,5 +63,4 @@ def root():
         print_exc()
 
 
-if __name__ == "__main__":
-    root()
+root()
