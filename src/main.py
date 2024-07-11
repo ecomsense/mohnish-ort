@@ -22,17 +22,20 @@ def root():
         # download necessary masters
         dump()
 
+        # TODO
+        # move this to strategy ?
+
         # subscribing index from symbols.yml automtically
         ws: object = Wsocket()
         resp = False
         #  wait for index to give ltp
         while not resp:
             resp = ws.ltp()
-        else:
-            # extract a dictionary from symbol yml, given the key, value
-            dct = dict_from_yml("base", "BANKNIFTY")
-            # decipher ltp from instrument token
-            bn_ltp = ltp_from_ws_response(dct["instrument_token"], resp)
+
+        # extract a dictionary from symbol yml, given the key, value
+        dct = dict_from_yml("base", "BANKNIFTY")
+        # decipher ltp from instrument token
+        bn_ltp = ltp_from_ws_response(dct["instrument_token"], resp)
 
         # then use it to find atm and option chain
         if bn_ltp:
