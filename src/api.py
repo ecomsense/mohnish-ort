@@ -63,6 +63,16 @@ def ord_to_pos(df):
     return result_df
 
 
+def build_order(exchange, tradingsymbol, transaction_type, quantity):
+    order = {}
+    order['exchange'] = exchange
+    order['tradingsymbol'] = tradingsymbol
+    order['transaction_type'] = transaction_type
+    order['quantity'] = quantity
+    order['order_type'] = "MARKET"
+
+    return order
+
 def get_bypass():
     from stock_brokers.bypass.bypass import Bypass
 
@@ -147,7 +157,7 @@ class Helper:
                     side = i.pop("side")
                     i["side"] = "S" if side == "B" else "B"
                     i["tag"] = "exit"
-                    if CMMN["live"]:
+                    if O_SETG["live"]:
                         resp = cls.api().order_place(**i)
                         print(resp)
                     else:
@@ -175,7 +185,7 @@ class Helper:
                 o["validity"] = "DAY"
                 o["product"] = "NRML"
                 logging.debug(o)
-                if CMMN["live"]:
+                if O_SETG["live"]:
                     resp = cls.api().order_place(**o)
                     print(resp)
                 else:

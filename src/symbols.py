@@ -10,7 +10,7 @@ def get_symbols(exchange: str) -> Dict[str, Dict[str, Any]]:
         url = f"https://api.kite.trade/instruments/{exchange}"
         df = pd.read_csv(url)
         # keep only tradingsymbol and instrument_token
-        df = df[["tradingsymbol", "instrument_token"]]
+        df = df[["tradingsymbol", "instrument_token", "name", "strike", "instrument_type", "expiry", "lot_size"]]
         json = df.to_dict(orient="records")
         # flatten list in dictionary values
     except Exception as e:
@@ -84,19 +84,29 @@ class Symbols:
             print(f"tokens from symbols error: {e}")
             print_exc()
 
-    def build_chain(self, expiry, ltp):
+    def build_chain(self, expiry, ltp, full_chain=True):
         try:
             atm = self.calc_atm_from_ltp(ltp)
-            lst = []
-            lst.append(self.base + expiry + str(atm) + "CE")
-            lst.append(self.base + expiry + str(atm) + "PE")
-            for v in range(1, self.depth):
-                lst.append(self.base + expiry + str(atm + v * self.diff) + "CE")
-                lst.append(self.base + expiry + str(atm + v * self.diff) + "PE")
-                lst.append(self.base + expiry + str(atm - v * self.diff) + "CE")
-                lst.append(self.base + expiry + str(atm - v * self.diff) + "PE")
-            filter = self.tokens_from_symbols(lst)
+            depth = self.depth if full_chain else 0
+            symbols = self._generate_symbols(expiry, atm, depth)
+            print(f"Symbols: {symbols}")
+            filter = self.tokens_from_symbols(symbols)
             return filter
         except Exception as e:
-            print(f"build chain error: {e}")
+            print(f"generate_symbols error: {e}")
+            print_exc()
+    
+    def _generate_symbols(self, expiry, atm, depth):
+        lst = [self.base + expiry + str(atm) + opt for opt in ["CE", "PE"]]
+        if depth > 0:
+            lst.extend(self.base + expiry + str(atm + v * self.diff) + opt for v in range(1, depth + 1) for opt in ["CE", "PE"])
+            lst.extend(self.base + expiry + str(atm - v * self.diff) + opt for v in range(1, depth + 1) for opt in ["CE", "PE"])
+        print(f"in _gen lst is {lst}")
+        return lst
+
+    def get_straddle(self, expiry, ltp):
+        try:
+            return self.build_chain(expiry, ltp, full_chain=False)
+        except Exception as e:
+            print(f"get_straddle error: {e}")
             print_exc()
