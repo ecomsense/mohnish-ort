@@ -2,7 +2,7 @@ wheel
 setuptools==58.2.0
 pydantic==1.9
 PyYAML
-pyOpenssl==21.0
+pyOpenssl==24.1.0
 git+https://github.com/ecomsense/stock-brokers
 git+https://github.com/pannet1/kiteext
 git+https://github.com/pannet1/toolkit
