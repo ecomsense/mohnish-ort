@@ -1,5 +1,4 @@
-import datetime
-from constants import logging
+from constants import O_SETG, logging
 from symbols import dump, dict_from_yml
 from symbols import Symbols
 from wsocket import Wsocket
@@ -7,6 +6,7 @@ from api import Helper, build_order
 from types import SimpleNamespace
 from traceback import print_exc
 from toolkit.kokoo import timer, is_time_past
+import pendulum as pdlm
 
 
 SUPPORT_RESISTANCE_LEVELS = {
@@ -30,20 +30,6 @@ class TradingStrategy:
         self.current_prices = {}
         self.ws = Wsocket()
         self.api = Helper()
-
-    # TODO removing this in the next iteration
-    # because it is configured via settings file
-    """
-    def initialize_logging(self):
-        logging.basicConfig(filename='trading_strategy.log', level=logging.INFO, format='%(asctime)s - %(message)s')
-
-    def get_current_time(self):
-        return datetime.datetime.now().strftime('%H:%M:%S')
-    """
-
-    def wait_until_entry_time(self):
-        while is_time_past(self.entry_time):
-            timer(1)
 
     def ltp_from_ws_response(self, instrument_token, resp):
         bn_ltp = [
@@ -83,7 +69,7 @@ class TradingStrategy:
         pe_order = build_order(self.exchange, pe_symbol, "SELL", self.initial_quantity)
         self.positions.append(self.api.enter("SELL", [ce_order]))
         self.positions.append(self.api.enter("SELL", [pe_order]))
-        logging.info("Initial entry taken at %s", self.get_current_time())
+        logging.info("Initial entry complete")
 
     def monitor_positions(self):
         while True:
@@ -160,36 +146,29 @@ class TradingStrategy:
         )
 
     def run(self):
-        dump()
-        while not is_time_past(self.entry_time):
-            print(f"z #@! zZZ sleeping till {self.entry_time}")
-            timer(1)
+        try:
+            while not is_time_past(self.entry_time):
+                logging.info(f"z #@! zZZ sleeping till {self.entry_time}")
+                timer(1)
 
-        # subscribing index from symbols.yml automtically
-        self.ws: object = Wsocket()
-        resp = False
-        #  wait for index to give ltp
-        while not resp:
-            resp = self.ws.ltp()
-        dct = dict_from_yml("base", "BANKNIFTY")
-        # decipher ltp from instrument token
-        bn_ltp = self.ltp_from_ws_response(dct["instrument_token"], self.ws.ltp())
+            logging.debug("subscribing index from symbols yml automtically")
+            self.ws: object = Wsocket()
+            resp = False
+            while not resp:
+                resp = self.ws.ltp()
 
-        # Get the exchange
-        self.exchange = dct["exchange"]
+            logging.debug("decipher ltp from websocket response")
+            dct = dict_from_yml("base", "BANKNIFTY")
+            bn_ltp = self.ltp_from_ws_response(dct["instrument_token"], resp)
+            self.exchange = dct["exchange"]
 
-        if bn_ltp:
             bn = Symbols(**dct)
             self.take_initial_entry(bn, bn_ltp)
             self.monitor_positions()
-
-
-def ltp_from_ws_response(instrument_token, resp):
-    bn_ltp = [
-        d["last_price"] for d in resp if d["instrument_token"] == instrument_token
-    ][0]
-    print(bn_ltp)
-    return bn_ltp
+        except Exception as e:
+            logging.error(f"run error: {e}")
+            print_exc()
+            __import__("sys").exit(1)
 
 
 def root():
@@ -197,56 +176,14 @@ def root():
         logging.info("HAPPY TRADING")
         # download necessary masters
         dump()
-
-        # TODO
-        # move this to strategy ?
-
-        # subscribing index from symbols.yml automtically
-        ws: object = Wsocket()
-        resp = False
-        #  wait for index to give ltp
-        while not resp:
-            resp = ws.ltp()
-
-        # extract a dictionary from symbol yml, given the key, value
-        dct = dict_from_yml("base", "BANKNIFTY")
-        # decipher ltp from instrument token
-        bn_ltp = ltp_from_ws_response(dct["instrument_token"], resp)
-
-        # then use it to find atm and option chain
-        # if bn_ltp:
-        #     bn = Symbols(**dct)
-        #     # lst = bn.build_chain("24JUL", bn_ltp)
-        #     # we are subscribing now only for options
-        #     # resp = ws.ltp(lst)
-        #     # print("lst:", lst)
-        #     straddle = bn.get_straddle("24JUL", bn_ltp)
-        #     print("straddle:", straddle)
-
-        # TODO for demo can be removed
-        # while True:
-        #     # we should get the option prices here
-        #     resp = ws.ltp()
-        #     # print(resp)
-        #     timer(1)
-
-        strategy = TradingStrategy(
-            entry_time="09:30:00", initial_quantity=1, stop_loss=60, reentries=1
-        )
-        strategy.run()
-
-        """
-        # we create a namespace so that dictionaries values
-        # can be accessed like properties
-        tasks = SimpleNamespace(
-            ws=ws,
-            oc=oc,
-            sr=sr,
-        )
-        """
-
+        TradingStrategy(
+            entry_time=O_SETG["program"]["start"],
+            initial_quantity=1,
+            stop_loss=60,
+            reentries=1,
+        ).run()
     except Exception as e:
-        print(e)
+        print(f"root error: {e}")
         print_exc()
 
 

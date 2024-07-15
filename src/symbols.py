@@ -10,7 +10,17 @@ def get_symbols(exchange: str) -> Dict[str, Dict[str, Any]]:
         url = f"https://api.kite.trade/instruments/{exchange}"
         df = pd.read_csv(url)
         # keep only tradingsymbol and instrument_token
-        df = df[["tradingsymbol", "instrument_token", "name", "strike", "instrument_type", "expiry", "lot_size"]]
+        df = df[
+            [
+                "tradingsymbol",
+                "instrument_token",
+                "name",
+                "strike",
+                "instrument_type",
+                "expiry",
+                "lot_size",
+            ]
+        ]
         json = df.to_dict(orient="records")
         # flatten list in dictionary values
     except Exception as e:
@@ -59,11 +69,7 @@ class Symbols:
 
     def calc_atm_from_ltp(self, ltp) -> int:
         try:
-            current_strike = ltp - (ltp % self.diff)
-            next_higher_strike = current_strike + self.diff
-            if ltp - current_strike < next_higher_strike - ltp:
-                return int(current_strike)
-            return int(next_higher_strike)
+            return round(ltp / self.diff) * self.diff
         except Exception as e:
             print(f"calc atm error: {e}")
             print_exc()
@@ -95,12 +101,20 @@ class Symbols:
         except Exception as e:
             print(f"generate_symbols error: {e}")
             print_exc()
-    
+
     def _generate_symbols(self, expiry, atm, depth):
         lst = [self.base + expiry + str(atm) + opt for opt in ["CE", "PE"]]
         if depth > 0:
-            lst.extend(self.base + expiry + str(atm + v * self.diff) + opt for v in range(1, depth + 1) for opt in ["CE", "PE"])
-            lst.extend(self.base + expiry + str(atm - v * self.diff) + opt for v in range(1, depth + 1) for opt in ["CE", "PE"])
+            lst.extend(
+                self.base + expiry + str(atm + v * self.diff) + opt
+                for v in range(1, depth + 1)
+                for opt in ["CE", "PE"]
+            )
+            lst.extend(
+                self.base + expiry + str(atm - v * self.diff) + opt
+                for v in range(1, depth + 1)
+                for opt in ["CE", "PE"]
+            )
         print(f"in _gen lst is {lst}")
         return lst
 

@@ -3,6 +3,7 @@ from typing import List
 from traceback import print_exc
 import pandas as pd
 import pendulum as plum
+from paper import Paper
 
 
 def ord_to_pos(df):
@@ -65,13 +66,14 @@ def ord_to_pos(df):
 
 def build_order(exchange, tradingsymbol, transaction_type, quantity):
     order = {}
-    order['exchange'] = exchange
-    order['tradingsymbol'] = tradingsymbol
-    order['transaction_type'] = transaction_type
-    order['quantity'] = quantity
-    order['order_type'] = "MARKET"
+    order["exchange"] = exchange
+    order["tradingsymbol"] = tradingsymbol
+    order["transaction_type"] = transaction_type
+    order["quantity"] = quantity
+    order["order_type"] = "MARKET"
 
     return order
+
 
 def get_bypass():
     from stock_brokers.bypass.bypass import Bypass
@@ -87,7 +89,14 @@ def get_bypass():
                 if len(enctoken) < 5:
                     enctoken = None
         print(f"enctoken to broker {enctoken}")
-        bypass = Bypass(dct["userid"], dct["password"], dct["totp"], tokpath, enctoken)
+        if O_SETG["live"]:
+            bypass = Bypass(
+                dct["userid"], dct["password"], dct["totp"], tokpath, enctoken
+            )
+        else:
+            bypass = Paper(
+                dct["userid"], dct["password"], dct["totp"], tokpath, enctoken
+            )
         if bypass.authenticate():
             if not enctoken:
                 enctoken = bypass.kite.enctoken
@@ -97,6 +106,7 @@ def get_bypass():
             raise Exception("unable to authenticate")
     except Exception as e:
         print(f"unable to create bypass object {e}")
+        print_exc()
     else:
         return bypass
 

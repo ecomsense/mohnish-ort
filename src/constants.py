@@ -44,30 +44,35 @@ def yml_to_obj(arg=None):
         and also copies project specific settings
         to data folder
     """
-    if not arg:
-        # return the parent folder name
-        parent = path.dirname(path.abspath(__file__))
-        print(f"{parent=}")
-        grand_parent_path = path.dirname(parent)
-        print(f"{grand_parent_path=}")
-        folder = path.basename(grand_parent_path)
-        # reverse the words seperated by -
-        lst = folder.split("_")
-        file = "-".join(reversed(lst))
-        file = "../../" + file + ".yml"
+    try:
+        if not arg:
+            # return the parent folder name
+            parent = path.dirname(path.abspath(__file__))
+            print(f"{parent=}")
+            grand_parent_path = path.dirname(parent)
+            print(f"{grand_parent_path=}")
+            folder = path.basename(grand_parent_path)
+            # reverse the words seperated by -
+            lst = folder.split("_")
+            file = "-".join(reversed(lst))
+            file = "../../" + file + ".yml"
+        else:
+            file = S_DATA + arg
+
+        flag = O_FUTL.is_file_exists(file)
+
+        if not flag and arg:
+            print(f"using default {file=}")
+            O_FUTL.copy_file("../factory/", "../data/", "settings.yml")
+        elif not flag and arg is None:
+            print(f"fill the {file=} file and try again")
+            __import__("sys").exit()
+    except Exception as e:
+        print(e)
+        print_exc()
+        __import__("sys").exit(1)
     else:
-        file = S_DATA + arg
-
-    flag = O_FUTL.is_file_exists(file)
-
-    if not flag and arg:
-        print(f"using default {file=}")
-        O_FUTL.copy_file("../factory/", "../data/", "settings.yml")
-    elif not flag and arg is None:
-        print(f"fill the {file=} file and try again")
-        __import__("sys").exit()
-
-    return O_FUTL.get_lst_fm_yml(file)
+        return O_FUTL.get_lst_fm_yml(file)
 
 
 def read_yml():
@@ -101,10 +106,20 @@ def set_logger():
         display or write to file
         based on user choice from settings
     """
-    level = O_SETG["log"]["level"]
-    if not O_SETG["log"]["show"]:
-        return Logger(level)
-    return Logger(level, S_LOG)
+    try:
+        if O_SETG.get("log", None):
+            level = O_SETG["log"].get("level", 10)
+            if not O_SETG["log"].get("show", None):
+                return Logger(level)
+            else:
+                return Logger(level, S_LOG)
+        return Logger(10)
+    except Exception as e:
+        print(f"set logger error: {e}")
+        print_exc()
+        __import__("sys").exit(1)
+    finally:
+        return Logger(10)
 
 
 logging = set_logger()

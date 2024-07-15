@@ -1,4 +1,5 @@
-from constants import D_SYMBOL, logging
+from kiteconnect import KiteTicker
+from constants import D_SYMBOL, logging, O_CNFG
 from api import Helper
 from typing import List, Dict
 
@@ -20,7 +21,13 @@ class Wsocket:
     def __init__(self):
         self.ticks = []
         self.tokens = []
-        self.kws = Helper.api().kite.kws()
+        kite = Helper.api().kite
+        if O_CNFG["broker"] == "bypass":
+            logging.debug("using BYPASS ticker")
+            self.kws = kite.kws()
+        else:
+            logging.debug("using official ticker")
+            self.kws = KiteTicker(kite.api_key, kite.access_token)
         self.kws.on_ticks = self.on_ticks
         self.kws.on_connect = self.on_connect
         self.kws.on_close = self.on_close
