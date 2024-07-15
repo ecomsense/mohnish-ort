@@ -7,3 +7,7 @@ program:
 trade:
   start: "9:30"
   stop: "15:00"
+strategy:
+  base: "BANKNIFTY"
+  stop_loss: 60
+live: true
