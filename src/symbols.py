@@ -74,6 +74,22 @@ class Symbols:
             print(f"calc atm error: {e}")
             print_exc()
 
+    def _generate_symbols(self, expiry, atm, depth):
+        lst = [self.base + expiry + str(atm) + opt for opt in ["CE", "PE"]]
+        if depth > 0:
+            lst.extend(
+                self.base + expiry + str(atm + v * self.diff) + opt
+                for v in range(1, depth + 1)
+                for opt in ["CE", "PE"]
+            )
+            lst.extend(
+                self.base + expiry + str(atm - v * self.diff) + opt
+                for v in range(1, depth + 1)
+                for opt in ["CE", "PE"]
+            )
+        print(f"in _gen lst is {lst}")
+        return lst
+
     def tokens_from_symbols(self, symbols: List[str]) -> List:
         try:
             filter = []
@@ -101,22 +117,6 @@ class Symbols:
         except Exception as e:
             print(f"generate_symbols error: {e}")
             print_exc()
-
-    def _generate_symbols(self, expiry, atm, depth):
-        lst = [self.base + expiry + str(atm) + opt for opt in ["CE", "PE"]]
-        if depth > 0:
-            lst.extend(
-                self.base + expiry + str(atm + v * self.diff) + opt
-                for v in range(1, depth + 1)
-                for opt in ["CE", "PE"]
-            )
-            lst.extend(
-                self.base + expiry + str(atm - v * self.diff) + opt
-                for v in range(1, depth + 1)
-                for opt in ["CE", "PE"]
-            )
-        print(f"in _gen lst is {lst}")
-        return lst
 
     def get_straddle(self, expiry, ltp):
         try:

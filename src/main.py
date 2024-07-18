@@ -3,7 +3,6 @@ from symbols import dump, dict_from_yml
 from symbols import Symbols
 from wsocket import Wsocket
 from api import Helper, build_order
-from types import SimpleNamespace
 from traceback import print_exc
 from toolkit.kokoo import timer, is_time_past
 import pendulum as pdlm
@@ -19,14 +18,11 @@ SUPPORT_RESISTANCE_LEVELS = {
 
 
 class TradingStrategy:
-    def __init__(
-        self, entry_time: str, initial_quantity: int, stop_loss: int, reentries: int
-    ):
-        self.entry_time = entry_time
+    def __init__(self, initial_quantity: int, stop_loss: int, expiry: str):
         self.initial_quantity = initial_quantity
         self.stop_loss = stop_loss
-        self.reentries = reentries
-        self.positions = []
+        self.expiry = expiry
+        self.orders = []
         self.current_prices = {}
         self.ws = Wsocket()
         self.api = Helper()
@@ -42,8 +38,8 @@ class TradingStrategy:
         print(f"ATM strike: {atm_strike}")
         return atm_strike
 
-    def get_option_tokens(self, bn, atm_strike, expiry_date):
-        straddle = bn.get_straddle("24JUL", atm_strike)
+    def get_option_tokens(self, bn, atm_strike):
+        straddle = bn.get_straddle(self.expiry, atm_strike)
         # Using lambda and filter to get the tokens for the specific strike
         ce_symbol = next(
             filter(
@@ -62,20 +58,20 @@ class TradingStrategy:
         print(f"ce_token, pe_token : {ce_symbol, pe_symbol}")
         return ce_symbol, pe_symbol
 
-    def take_initial_entry(self, bn, bn_ltp):
+    def take_initial_entry(self, bn_ltp):
         atm_strike = self.get_atm_strike(bn_ltp)
-        ce_symbol, pe_symbol = self.get_option_tokens(bn, atm_strike, "24JUL")
+        ce_symbol, pe_symbol = self.get_option_tokens(self.symbols, atm_strike)
         ce_order = build_order(self.exchange, ce_symbol, "SELL", self.initial_quantity)
         pe_order = build_order(self.exchange, pe_symbol, "SELL", self.initial_quantity)
-        self.positions.append(self.api.enter("SELL", [ce_order]))
-        self.positions.append(self.api.enter("SELL", [pe_order]))
+        self.orders.append(self.api.enter("SELL", [ce_order]))
+        self.orders.append(self.api.enter("SELL", [pe_order]))
         logging.info("Initial entry complete")
 
     def monitor_positions(self):
         while True:
             resp = self.ws.ltp()
-            print(f"Positions {self.positions}")
-            for position in self.positions:
+            print(f"Positions {self.orders}")
+            for position in self.orders:
                 current_price = self.ltp_from_ws_response(position["token"], resp)
                 self.current_prices[position["token"]] = current_price
                 if (
@@ -106,7 +102,7 @@ class TradingStrategy:
             position["symbol"], position["side"], position["quantity"]
         )
         logging.info("Exited position: %s", position)
-        self.positions.remove(position)
+        self.orders.remove(position)
 
     def check_support_resistance_levels(self):
         for symbol, levels in SUPPORT_RESISTANCE_LEVELS.items():
@@ -136,9 +132,9 @@ class TradingStrategy:
         side = "SELL" if position["side"] == "BUY" else "BUY"
         quantity = self.initial_quantity * 2
         atm_strike = self.get_atm_strike(self.current_prices["BANKNIFTY"])
-        call_token, put_token = self.get_option_tokens(Symbols(), atm_strike, "24JUL")
+        call_token, put_token = self.get_option_tokens(Symbols(), atm_strike)
         new_token = call_token if position["symbol"].endswith("CALL") else put_token
-        self.positions.append(
+        self.orders.append(
             self.ws.place_order("BANKNIFTY", side, "ATM", quantity, new_token)
         )
         logging.info(
@@ -147,23 +143,18 @@ class TradingStrategy:
 
     def run(self):
         try:
-            while not is_time_past(self.entry_time):
-                logging.info(f"z #@! zZZ sleeping till {self.entry_time}")
-                timer(1)
-
             logging.debug("subscribing index from symbols yml automtically")
             self.ws: object = Wsocket()
             resp = False
-            while not resp:
+            while not resp or not any(resp):
                 resp = self.ws.ltp()
 
             logging.debug("decipher ltp from websocket response")
             dct = dict_from_yml("base", "BANKNIFTY")
             bn_ltp = self.ltp_from_ws_response(dct["instrument_token"], resp)
             self.exchange = dct["exchange"]
-
-            bn = Symbols(**dct)
-            self.take_initial_entry(bn, bn_ltp)
+            self.symbols = Symbols(**dct)
+            self.take_initial_entry(bn_ltp)
             self.monitor_positions()
         except Exception as e:
             logging.error(f"run error: {e}")
@@ -176,11 +167,14 @@ def root():
         logging.info("HAPPY TRADING")
         # download necessary masters
         dump()
+        entry_time: str = O_SETG["program"]["start"]
+        while not is_time_past(entry_time):
+            logging.info(f"z #@! zZZ sleeping till {entry_time}")
+            timer(1)
         TradingStrategy(
-            entry_time=O_SETG["program"]["start"],
-            initial_quantity=1,
+            initial_quantity=15,
             stop_loss=60,
-            reentries=1,
+            expiry="24JUL",
         ).run()
     except Exception as e:
         print(f"root error: {e}")

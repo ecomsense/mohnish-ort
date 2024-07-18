@@ -170,9 +170,6 @@ class Helper:
                     if O_SETG["live"]:
                         resp = cls.api().order_place(**i)
                         print(resp)
-                    else:
-                        cls.orders.append(i)
-
                 if buy_or_short == "buy":
                     cls.buy = []
                 else:
@@ -193,45 +190,9 @@ class Helper:
             lst = cls.buy if buy_or_short == "buy" else cls.short
             for o in orders:
                 o["validity"] = "DAY"
-                o["product"] = "NRML"
+                o["product"] = "MIS"
                 logging.debug(o)
-                if O_SETG["live"]:
-                    resp = cls.api().order_place(**o)
-                    print(resp)
-                else:
-                    args = [
-                        {
-                            "exchangeSegment": 2,
-                            "exchangeInstrumentID": o["symbol"].split("|")[-1],
-                        }
-                    ]
-                    o["broker_timestamp"] = plum.now().format("YYYY-MM-DD HH:mm:ss")
-                    o["average_price"] = Helper.get_ltp(args)
-                    o["filled_quantity"] = o.pop("quantity")
-                    o["tag"] = "enter"
-                    cls.orders.append(o)
                 lst.append(o)
         except Exception as e:
             logging.error(f"enter: {e}")
             print_exc()
-
-    @classmethod
-    def positions(cls):
-        if O_SETG["live"]:
-            return cls.api().positions
-        elif any(cls.orders):
-            df = pd.DataFrame(cls.orders)
-            df.to_csv(S_DATA + "orders.csv", index=False)
-            df = ord_to_pos(df)
-            lst = df.to_dict(orient="records")
-            return lst
-        else:
-            return []
-
-
-if __name__ == "__main__":
-    resp = Helper.api().positions
-    pd.DataFrame(resp).to_csv(S_DATA + "positions.csv", index=False)
-
-    resp = Helper.api().orders
-    pd.DataFrame(resp).to_csv(S_DATA + "orders.csv", index=False)
