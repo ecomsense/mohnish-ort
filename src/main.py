@@ -18,10 +18,13 @@ SUPPORT_RESISTANCE_LEVELS = {
 
 
 class TradingStrategy:
-    def __init__(self, initial_quantity: int, stop_loss: int, expiry: str):
-        self.initial_quantity = initial_quantity
-        self.stop_loss = stop_loss
-        self.expiry = expiry
+    def __init__(self, settings):
+        # Unpack settings into instance attributes
+        self.base = settings.get("base", "BANKNIFTY")  # Provide a default value if needed
+        self.initial_quantity = settings.get("quantity", 15)
+        self.stop_loss = settings.get("stop_loss", 60)
+        self.expiry_offset = settings.get("expiry_offset", 0)
+
         self.orders = []
         self.current_prices = {}
         self.ws = Wsocket()
@@ -33,34 +36,9 @@ class TradingStrategy:
         ][0]
         return bn_ltp
 
-    def get_atm_strike(self, bn_ltp):
-        atm_strike = round(bn_ltp / 100) * 100
-        print(f"ATM strike: {atm_strike}")
-        return atm_strike
-
-    def get_option_tokens(self, bn, atm_strike):
-        straddle = bn.get_straddle(self.expiry, atm_strike)
-        # Using lambda and filter to get the tokens for the specific strike
-        ce_symbol = next(
-            filter(
-                lambda x: x["instrument_type"] == "CE" and x["strike"] == atm_strike,
-                straddle,
-            ),
-            {},
-        ).get("tradingsymbol")
-        pe_symbol = next(
-            filter(
-                lambda x: x["instrument_type"] == "PE" and x["strike"] == atm_strike,
-                straddle,
-            ),
-            {},
-        ).get("tradingsymbol")
-        print(f"ce_token, pe_token : {ce_symbol, pe_symbol}")
-        return ce_symbol, pe_symbol
 
     def take_initial_entry(self, bn_ltp):
-        atm_strike = self.get_atm_strike(bn_ltp)
-        ce_symbol, pe_symbol = self.get_option_tokens(self.symbols, atm_strike)
+        ce_symbol, pe_symbol = self.symbols.get_option_symbols(bn_ltp)
         ce_order = build_order(self.exchange, ce_symbol, "SELL", self.initial_quantity)
         pe_order = build_order(self.exchange, pe_symbol, "SELL", self.initial_quantity)
         self.orders.append(self.api.enter("SELL", [ce_order]))
@@ -129,10 +107,11 @@ class TradingStrategy:
         return False
 
     def reenter_position(self, position):
+        # TODO: To implement this completely
         side = "SELL" if position["side"] == "BUY" else "BUY"
         quantity = self.initial_quantity * 2
-        atm_strike = self.get_atm_strike(self.current_prices["BANKNIFTY"])
-        call_token, put_token = self.get_option_tokens(Symbols(), atm_strike)
+        # TODO: get the ltp of base
+        call_token, put_token = self.symbols.get_option_symbols(self.current_prices["BANKNIFTY"])
         new_token = call_token if position["symbol"].endswith("CALL") else put_token
         self.orders.append(
             self.ws.place_order("BANKNIFTY", side, "ATM", quantity, new_token)
@@ -154,6 +133,7 @@ class TradingStrategy:
             bn_ltp = self.ltp_from_ws_response(dct["instrument_token"], resp)
             self.exchange = dct["exchange"]
             self.symbols = Symbols(**dct)
+            self.expiry = self.symbols.get_expiry(expiry_offset=self.expiry_offset)
             self.take_initial_entry(bn_ltp)
             self.monitor_positions()
         except Exception as e:
@@ -168,14 +148,11 @@ def root():
         # download necessary masters
         dump()
         entry_time: str = O_SETG["program"]["start"]
+        strategy_settings = O_SETG["strategy"]
         while not is_time_past(entry_time):
             logging.info(f"z #@! zZZ sleeping till {entry_time}")
             timer(1)
-        TradingStrategy(
-            initial_quantity=15,
-            stop_loss=60,
-            expiry="24JUL",
-        ).run()
+        TradingStrategy(strategy_settings).run()
     except Exception as e:
         print(f"root error: {e}")
         print_exc()
