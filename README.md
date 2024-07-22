@@ -16,12 +16,10 @@
 
 4. **Exit Condition Based on Support and Resistance:**
    - Exit the buy Call Position (CE) if:
-     - The current price of Bank Nifty crosses above the predefined resistance level or crosses below the predefined support level.
+     - The current price crosses above the predefined resistance level or crosses below the predefined support level. This is including the premium of CE entered (entry price +/- 60 points)
      - The price of the monitored stock crosses above its respective resistance level or drops below its respective support level.
    - Exit the buy Put Position (PE) if:
-     - The current price of Bank Nifty drops below the predefined support level or crosses above the predefined resistance level.
-     - The price of the monitored stock drops below its respective support level or crosses above its respective resistance level.
-   - If any of these conditions are met, exit the respective position and proceed to the next step.
+     - Same as CE above.
 
 5. **Sell Another Option (CE or PE) with ATM Strike:**
    - After the SL is hit and positions are adjusted:
@@ -36,7 +34,7 @@
    - Enter 1 lot (configurable quantity) of short straddle on Bank Nifty at the specified entry time.
 
 2. **Stop Loss Setup:**
-   - Set SL for 2 lots (configurable quantity) at 60 points (configurable) for both Call and Put.
+   - Set SL for 1 lot x 2 (configurable quantity) at 60 points (configurable) for both Call and Put.
    - If the SL is hit on either side, adjust positions accordingly and note down the current prices of monitored stocks.
 
 3. **Monitor SR Levels:**
