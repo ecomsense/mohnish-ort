@@ -1,5 +1,5 @@
 import pandas as pd
-from omspy_brokers.bypass import Bypass
+from stock_brokers.bypass.bypass import Bypass
 from constants import O_FUTL, S_DATA
 import pendulum as plum
 
