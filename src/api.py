@@ -6,63 +6,6 @@ import pendulum as plum
 from paper import Paper
 
 
-def ord_to_pos(df):
-    # Filter DataFrame to include only 'B' (Buy) side transactions
-    buy_df = df[df["side"] == "B"]
-
-    # Filter DataFrame to include only 'S' (Sell) side transactions
-    sell_df = df[df["side"] == "S"]
-
-    # Group by 'symbol' and sum 'filled_quantity' for 'B' side transactions
-    buy_grouped = (
-        buy_df.groupby("symbol")
-        .agg({"filled_quantity": "sum", "average_price": "sum"})
-        .reset_index()
-    )
-    # Group by 'symbol' and sum 'filled_quantity' for 'S' side transactions
-    sell_grouped = (
-        sell_df.groupby("symbol")
-        .agg({"filled_quantity": "sum", "average_price": "sum"})
-        .reset_index()
-    )
-    # Merge the two DataFrames on 'symbol' column with a left join
-    result_df = pd.merge(
-        buy_grouped,
-        sell_grouped,
-        on="symbol",
-        suffixes=("_buy", "_sell"),
-        how="outer",
-    )
-
-    result_df.fillna(0, inplace=True)
-    # Calculate the net filled quantity by subtracting 'Sell' side quantity from 'Buy' side quantity
-
-    result_df["quantity"] = (
-        result_df["filled_quantity_buy"] - result_df["filled_quantity_sell"]
-    )
-    result_df["urmtom"] = result_df.apply(
-        lambda row: 0
-        if row["quantity"] == 0
-        else (row["average_price_buy"] - row["filled_quantity_sell"]) * row["quantity"],
-        axis=1,
-    )
-    result_df["rpnl"] = result_df.apply(
-        lambda row: row["average_price_sell"] - row["average_price_buy"]
-        if row["quantity"] == 0
-        else 0,
-        axis=1,
-    )
-    result_df.drop(
-        columns=[
-            "filled_quantity_buy",
-            "filled_quantity_sell",
-            "average_price_buy",
-            "average_price_sell",
-        ],
-        inplace=True,
-    )
-    return result_df
-
 
 def build_order(exchange, tradingsymbol, transaction_type, quantity):
     order = {}
@@ -71,7 +14,6 @@ def build_order(exchange, tradingsymbol, transaction_type, quantity):
     order["transaction_type"] = transaction_type
     order["quantity"] = quantity
     order["order_type"] = "MARKET"
-
     return order
 
 
@@ -143,12 +85,29 @@ def login():
     else:
         return get_zerodha()
 
+class Order:
+    quantity = 0
+
+    @classmethod
+    def set_quantity(cls, quantity):
+        cls.quantity = quantity
+
+    def __init__(self):
+        self.quantity = Order.quantity  # Access class-level quantity
+
+    def to_dict(self):
+        return {
+            "quantity": self.quantity,
+            "order_type": "MARKET",
+            "product": "MIS",
+            "validity": "DAY",
+            "tag": "enter"
+        }
+
 
 class Helper:
     api_object = None
     buy = []
-    short = []
-    orders = []
 
     @classmethod
     def api(cls):
@@ -156,43 +115,45 @@ class Helper:
             cls.api_object = login()
         return cls.api_object
 
-    @classmethod
-    def exit(cls, buy_or_short: str):
-        try:
-            lst = cls.buy if buy_or_short == "buy" else cls.short
-            print(f"exiting {buy_or_short}")
+    def __init__(self, initial_quantity):
+        Order.set_quantity(initial_quantity)
 
-            if any(lst):
-                for i in lst:
-                    side = i.pop("side")
-                    i["side"] = "S" if side == "B" else "B"
-                    i["tag"] = "exit"
-                    if O_SETG["live"]:
-                        resp = cls.api().order_place(**i)
-                        print(resp)
-                if buy_or_short == "buy":
-                    cls.buy = []
-                else:
-                    cls.short = []
+    def modify_to_close(self, kwargs):
+        """
+        modifies order from order book 
+
+        args: 
+            order_id: id of order to be modified
+            ltp: used for paper trades
+        returns: 
+            modify response
+        """
+        try:
+            params = dict(
+                order_id=kwargs["order_id"],
+                order_type="MARKET",
+                price=0.0,
+                variety="regular",
+                ltp=kwargs.get("ltp", 0)
+            )
+            return self.api().order_modify(**params)
         except Exception as e:
             logging.error(f"exit: {e}")
             print_exc()
 
-    @classmethod
-    def enter(cls, buy_or_short: str, orders: List):
+    def order_place(self, kwargs):
         """
-        param orders:
-            contains dictionary with keys
-            symbol, side, quantity, price, trigger_price
+        place order and can overload default order params
+
+        args: 
+            symbol, side, quantity, price, trigger_price, ltp
+        returns:
+            order place response
         """
         try:
-            print(f"entering {buy_or_short}")
-            lst = cls.buy if buy_or_short == "buy" else cls.short
-            for o in orders:
-                o["validity"] = "DAY"
-                o["product"] = "MIS"
-                logging.debug(o)
-                lst.append(o)
+            params = Order().to_dict()
+            params.update(kwargs)
+            return self.api().order_place(**params)
         except Exception as e:
             logging.error(f"enter: {e}")
             print_exc()
