@@ -7,16 +7,6 @@ from paper import Paper
 
 
 
-def build_order(exchange, tradingsymbol, transaction_type, quantity):
-    order = {}
-    order["exchange"] = exchange
-    order["tradingsymbol"] = tradingsymbol
-    order["transaction_type"] = transaction_type
-    order["quantity"] = quantity
-    order["order_type"] = "MARKET"
-    return order
-
-
 def get_bypass():
     from stock_brokers.bypass.bypass import Bypass
 
@@ -97,6 +87,7 @@ class Order:
 
     def to_dict(self):
         return {
+            "exchange": "NFO",
             "quantity": self.quantity,
             "order_type": "MARKET",
             "product": "MIS",
@@ -107,7 +98,6 @@ class Order:
 
 class Helper:
     api_object = None
-    buy = []
 
     @classmethod
     def api(cls):
@@ -118,7 +108,7 @@ class Helper:
     def __init__(self, initial_quantity):
         Order.set_quantity(initial_quantity)
 
-    def modify_to_close(self, kwargs):
+    def exit(self, kwargs):
         """
         modifies order from order book 
 
@@ -129,24 +119,19 @@ class Helper:
             modify response
         """
         try:
-            params = dict(
-                order_id=kwargs["order_id"],
-                order_type="MARKET",
-                price=0.0,
-                variety="regular",
-                ltp=kwargs.get("ltp", 0)
-            )
-            return self.api().order_modify(**params)
+            kwargs["order_type"] = "MARKET"
+            kwargs["price"] = 0.0
+            return self.api().order_modify(**kwargs)
         except Exception as e:
             logging.error(f"exit: {e}")
             print_exc()
 
-    def order_place(self, kwargs):
+    def enter(self, kwargs):
         """
         place order and can overload default order params
 
         args: 
-            symbol, side, quantity, price, trigger_price, ltp
+            symbol, side, price, trigger_price, ltp
         returns:
             order place response
         """

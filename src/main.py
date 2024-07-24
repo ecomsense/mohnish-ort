@@ -2,7 +2,7 @@ from constants import O_SETG, logging
 from symbols import dump, dict_from_yml
 from symbols import Symbols
 from wsocket import Wsocket
-from api import Helper, build_order
+from api import Helper
 from traceback import print_exc
 from toolkit.kokoo import timer, is_time_past
 import pendulum as pdlm
@@ -28,7 +28,7 @@ class TradingStrategy:
         self.orders = []
         self.current_prices = {}
         self.ws = Wsocket()
-        self.api = Helper()
+        self.api = Helper(self.initial_quantity)
 
     def ltp_from_ws_response(self, instrument_token, resp):
         bn_ltp = [
@@ -39,10 +39,16 @@ class TradingStrategy:
 
     def take_initial_entry(self, bn_ltp):
         ce_symbol, pe_symbol = self.symbols.get_option_symbols(bn_ltp)
-        ce_order = build_order(self.exchange, ce_symbol, "SELL", self.initial_quantity)
-        pe_order = build_order(self.exchange, pe_symbol, "SELL", self.initial_quantity)
-        self.orders.append(self.api.enter("SELL", [ce_order]))
-        self.orders.append(self.api.enter("SELL", [pe_order]))
+        params = {
+            "symbol": ce_symbol,
+            "side": "SELL",
+            "order_type": "MARKET",
+            "ltp": bn_ltp,
+        }
+        self.orders.append(self.api.enter(params))
+        params["symbol"] = pe_symbol
+        params["ltp"] = bn_ltp
+        self.orders.append(self.api.enter(params))
         logging.info("Initial entry complete")
 
     def monitor_positions(self):

@@ -24,6 +24,9 @@ class Paper(Bypass):
     def orders(self):
         return self._orders
 
+    def order_cancel(self, **args):
+        pass
+
     def order_place(self, **position_dict):
         try:
             if position_dict["order_type"] == "MKT":
