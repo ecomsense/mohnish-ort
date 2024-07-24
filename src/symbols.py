@@ -132,8 +132,8 @@ class Symbols:
             filter = []
             for symtoken in self.symbols_from_json:
                 if (
-                    symtoken["tradingsymbol"].startswith(self.base)
-                    and symtoken["tradingsymbol"] in symbols
+                    # symtoken["tradingsymbol"].startswith(self.base) and
+                    symtoken["tradingsymbol"] in symbols
                 ):
                     filter.append(symtoken)
             return filter

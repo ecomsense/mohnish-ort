@@ -13,3 +13,8 @@ strategy:
   quantity: 150   # It is the total quantity, not the number of lots
   stop_loss: 60
   expiry_offset: 0       # 0 = current expiry, 1 = next expiry, 2 = next to next expiry
+  stocks_to_watch:
+    HDFCBANK: [1500, 1600, 1700, 1800]
+    ICICIBANK: [1100, 1200, 1300, 1400]
+    SBIN: [700, 800, 900, 1000]
+    AXISBANK: [1100, 1200, 1300, 1400]

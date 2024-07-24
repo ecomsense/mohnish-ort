@@ -191,6 +191,9 @@ class Helper:
             for o in orders:
                 o["validity"] = "DAY"
                 o["product"] = "MIS"
+                if O_SETG["live"]:
+                    resp = cls.api().order_place(**o)
+                    print(resp)
                 logging.debug(o)
                 lst.append(o)
         except Exception as e:
