@@ -1,10 +1,11 @@
-from constants import O_SETG, logging, O_CNFG, S_DATA, O_FUTL
-from typing import List
 from traceback import print_exc
+from typing import List
+
 import pandas as pd
 import pendulum as plum
-from paper import Paper
 
+from constants import O_CNFG, O_FUTL, O_SETG, S_DATA, logging
+from paper import Paper
 
 
 def get_bypass():
@@ -75,6 +76,7 @@ def login():
     else:
         return get_zerodha()
 
+
 class Order:
     quantity = 0
 
@@ -92,7 +94,7 @@ class Order:
             "order_type": "MARKET",
             "product": "MIS",
             "validity": "DAY",
-            "tag": "enter"
+            "tag": "enter",
         }
 
 
@@ -110,12 +112,12 @@ class Helper:
 
     def exit(self, kwargs):
         """
-        modifies order from order book 
+        modifies order from order book
 
-        args: 
+        args:
             order_id: id of order to be modified
             ltp: used for paper trades
-        returns: 
+        returns:
             modify response
         """
         try:
@@ -130,13 +132,14 @@ class Helper:
         """
         place order and can overload default order params
 
-        args: 
+        args:
             symbol, side, price, trigger_price, ltp
         returns:
             order place response
         """
         try:
             params = Order().to_dict()
+            print("enter", kwargs)
             params.update(kwargs)
             return self.api().order_place(**params)
         except Exception as e:

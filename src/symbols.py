@@ -1,8 +1,10 @@
 from datetime import datetime
-from constants import O_FUTL, S_DATA
-import pandas as pd
 from traceback import print_exc
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
+import pandas as pd
+
+from constants import O_FUTL, S_DATA, logging
 
 
 def get_symbols(exchange: str) -> Dict[str, Dict[str, Any]]:
@@ -23,7 +25,7 @@ def get_symbols(exchange: str) -> Dict[str, Dict[str, Any]]:
             ]
         ]
 
-        df = df.dropna(axis=1, how='any')
+        df = df.dropna(axis=1, how="any")
         json = df.to_dict(orient="records")
 
     except Exception as e:
@@ -65,11 +67,26 @@ def dict_from_yml(key_to_search, value_to_match):
 
 class Symbols:
     def __init__(self, **kwargs):
+        print("initializing symbols", kwargs)
         if any(kwargs):
             # create property from dictionary
             for key, value in kwargs.items():
                 setattr(self, key, value)
         self.symbols_from_json = O_FUTL.read_file(S_DATA + self.exchange + ".json")
+
+    def tokens_from_symbols(self, symbols: List[str]) -> List:
+        try:
+            if isinstance(symbols, str):
+                symbols = [symbols]
+            filtered = []
+            for symtoken in self.symbols_from_json:
+                if symtoken["tradingsymbol"] in symbols:
+                    print("found")
+                    filtered.append(symtoken)
+            return filtered
+        except Exception as e:
+            print(f"tokens from symbols error: {e}")
+            print_exc()
 
     def calc_atm_from_ltp(self, ltp) -> int:
         try:
@@ -91,19 +108,21 @@ class Symbols:
         """
         # Filter by the base, expiry
         df = pd.DataFrame(self.symbols_from_json)
-        df['expiry'] = pd.to_datetime(df['expiry'])
-        filtered_df = df[(df['name'] == self.base) & (df['expiry'] == self.expiry_date)]
+        df["expiry"] = pd.to_datetime(df["expiry"])
+        filtered_df = df[(df["name"] == self.base) & (df["expiry"] == self.expiry_date)]
 
         merged_list = []
 
-        for option_type in ['CE', 'PE']:
-            option_df = filtered_df[filtered_df['instrument_type'] == option_type]
+        for option_type in ["CE", "PE"]:
+            option_df = filtered_df[filtered_df["instrument_type"] == option_type]
 
             # Sort DataFrame by strike
-            option_df = option_df.sort_values(by='strike')
+            option_df = option_df.sort_values(by="strike")
 
             # Find the index of the closest strike to the base strike
-            closest_index = option_df.index[(option_df['strike'] - atm).abs().argsort()[:1]].tolist()
+            closest_index = option_df.index[
+                (option_df["strike"] - atm).abs().argsort()[:1]
+            ].tolist()
 
             if not closest_index:
                 continue  # Skip if no closest strike found
@@ -111,10 +130,10 @@ class Symbols:
             closest_index = closest_index[0]
 
             # Get the sorted strikes
-            strikes = option_df['strike'].tolist()
+            strikes = option_df["strike"].tolist()
 
             # Find the position of the base strike in the sorted list
-            base_position = strikes.index(option_df.loc[closest_index, 'strike'])
+            base_position = strikes.index(option_df.loc[closest_index, "strike"])
 
             # Calculate the range for the depth
             start_index = max(base_position - depth, 0)
@@ -122,46 +141,41 @@ class Symbols:
 
             # Filter rows within the depth range
             depth_filtered_df = option_df.iloc[start_index:end_index]
-            merged_list.append(depth_filtered_df.iloc[0]['tradingsymbol'])
+            merged_list.append(depth_filtered_df.iloc[0]["tradingsymbol"])
 
         print(f"Merged Build chain {merged_list}")
         return merged_list
 
-    def tokens_from_symbols(self, symbols: List[str]) -> List:
-        try:
-            filter = []
-            for symtoken in self.symbols_from_json:
-                if (
-                    symtoken["tradingsymbol"].startswith(self.base)
-                    and symtoken["tradingsymbol"] in symbols
-                ):
-                    filter.append(symtoken)
-            return filter
-        except Exception as e:
-            print(f"tokens from symbols error: {e}")
-            print_exc()
-
-    def build_chain(self, ltp, full_chain=True):
+    def new_chain(self, ltp, full_chain=True):
         try:
             atm = self.calc_atm_from_ltp(ltp)
-            print(f"ATM {atm}")
             depth = self.depth if full_chain else 0
             symbols = self._generate_symbols(atm, depth)
-            print(f"Symbols: {symbols}")
+            logging.debug(f"Symbols: {symbols}")
             filter = self.tokens_from_symbols(symbols)
             return filter
         except Exception as e:
             print(f"generate_symbols error: {e}")
             print_exc()
 
-    def get_straddle(self, ltp):
-        try:
-            return self.build_chain(ltp, full_chain=False)
-        except Exception as e:
-            print(f"get_straddle error: {e}")
-            print_exc()
+    def build_chain(self, ltp, full_chain=True):
+        """
+        builds tokens required for the entire chain
+        """
+        atm = self.calc_atm_from_ltp(ltp)
+        lst = []
+        lst.append(self.base + self.expiry + str(atm) + "CE")
+        lst.append(self.base + self.expiry + str(atm) + "PE")
+        if full_chain:
+            for v in range(1, self.depth):
+                lst.append(self.base + self.expiry + str(atm + v * self.diff) + "CE")
+                lst.append(self.base + self.expiry + str(atm + v * self.diff) + "PE")
+                lst.append(self.base + self.expiry + str(atm - v * self.diff) + "CE")
+                lst.append(self.base + self.expiry + str(atm - v * self.diff) + "PE")
+        filter = self.tokens_from_symbols(lst)
+        print(f"Build chain {filter}")
+        return filter
 
-    
     def get_expiry(self, expiry_offset=0):
         """
         Get the expiry date for the specified base instrument with an optional expiry offset.
@@ -175,20 +189,22 @@ class Symbols:
         try:
             # Create DataFrame and filter by name
             df = pd.DataFrame(self.symbols_from_json)
-            filtered_df = df[df['name'] == self.base]
-            
+            filtered_df = df[df["name"] == self.base]
+
             # Drop duplicates, convert expiry to datetime, and filter future expiries
-            filtered_df = filtered_df.drop_duplicates(subset=['expiry'])
-            filtered_df['expiry'] = pd.to_datetime(filtered_df['expiry'])
+            filtered_df = filtered_df.drop_duplicates(subset=["expiry"])
+            filtered_df["expiry"] = pd.to_datetime(filtered_df["expiry"])
             today = pd.Timestamp.now().normalize()
-            future_expiries = filtered_df[filtered_df['expiry'] >= today]
+            future_expiries = filtered_df[filtered_df["expiry"] >= today]
 
             # Sort and check offset
-            future_expiries = future_expiries.sort_values(by='expiry')
+            future_expiries = future_expiries.sort_values(by="expiry")
             if 0 <= expiry_offset < len(future_expiries):
-                expiry_date = future_expiries.iloc[expiry_offset]['expiry']
+                expiry_date = future_expiries.iloc[expiry_offset]["expiry"]
                 self.expiry_date = expiry_date
-                print(f"Expiry date with offset {expiry_offset} for {self.base}: {expiry_date}")
+                print(
+                    f"Expiry date with offset {expiry_offset} for {self.base}: {expiry_date}"
+                )
                 return expiry_date
             return None
         except Exception as e:
@@ -196,15 +212,15 @@ class Symbols:
             print_exc()
 
     def get_option_symbols(self, ltp):
-        straddle = self.get_straddle(ltp)
+        straddle = self.build_chain(ltp, full_chain=False)
         print(f"Straddle {straddle}")
 
         # Use dictionary comprehension to map instrument types to their symbols
-        symbols = {item['instrument_type']: item['tradingsymbol'] for item in straddle}
+        symbols = {item["instrument_type"]: item["tradingsymbol"] for item in straddle}
 
         # Extract the symbols for CE and PE
-        ce_symbol = symbols.get('CE')
-        pe_symbol = symbols.get('PE')
+        ce_symbol = symbols.get("CE")
+        pe_symbol = symbols.get("PE")
 
-        print(f"CE symbol: {ce_symbol}, PE symbol: {pe_symbol}")
+        logging.debug(f"CE symbol: {ce_symbol}, PE symbol: {pe_symbol}")
         return ce_symbol, pe_symbol

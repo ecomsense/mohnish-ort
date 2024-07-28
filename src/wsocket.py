@@ -1,7 +1,9 @@
+from typing import Dict, List
+
 from kiteconnect import KiteTicker
-from constants import D_SYMBOL, logging, O_CNFG
+
 from api import Helper
-from typing import List, Dict
+from constants import D_SYMBOL, O_CNFG, logging
 
 
 def filter_ws_keys(incoming: List[Dict]) -> List[Dict]:
@@ -42,15 +44,16 @@ class Wsocket:
     def ltp(self, tokens=[]):
         if any(tokens):
             self.tokens = [dct["instrument_token"] for dct in tokens]
-            print(self.tokens)
         return self.ticks
 
     def on_ticks(self, ws, ticks):
         if any(self.tokens):
+            logging.info("SUBSCRIBING FOR NEW TOKENS")
             ws.subscribe(self.tokens)
             self.tokens = []
-        self.ticks = filter_ws_keys(ticks)
-        print(self.ticks)
+        if any(ticks):
+            logging.debug("RECEIVING TICKS")
+            self.ticks = filter_ws_keys(ticks)
 
     def on_connect(self, ws, response):
         if response:

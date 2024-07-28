@@ -1,7 +1,23 @@
+import random
+import string
+
 import pandas as pd
-from stock_brokers.bypass.bypass import Bypass
-from constants import O_FUTL, S_DATA
 import pendulum as plum
+from stock_brokers.bypass.bypass import Bypass
+
+from constants import O_FUTL, S_DATA
+
+
+def generate_unique_id():
+    # Get the current timestamp
+    timestamp = plum.now().format("YYYYMMDDHHmmssSSS")
+
+    # Generate a random string of 6 characters
+    random_str = "".join(random.choices(string.ascii_letters + string.digits, k=6))
+
+    # Combine the timestamp with the random string to form the unique ID
+    unique_id = f"{timestamp}_{random_str}"
+    return unique_id
 
 
 class Paper(Bypass):
@@ -14,23 +30,34 @@ class Paper(Bypass):
         "average_price",
     ]
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        userid,
+        password,
+        totp,
+        tokpath,
+        enctoken,
+    ):
+        super().__init__(userid, password, totp, tokpath, enctoken)
         self._orders = pd.DataFrame()
         if O_FUTL.is_file_not_2day(S_DATA + "orders.csv"):
             O_FUTL.nuke_file(S_DATA + "orders.csv")
 
     @property
     def orders(self):
-        return self._orders
+        list_of_orders = self._orders
+        pd.DataFrame(list_of_orders).to_csv(S_DATA + "orders.csv", index=False)
+        return list_of_orders
 
     def order_cancel(self, **args):
         pass
 
     def order_place(self, **position_dict):
         try:
-            if position_dict["order_type"] == "MKT":
+            order_id = generate_unique_id()
+            if position_dict["order_type"].upper() == "M":
                 args = dict(
+                    order_id=order_id,
                     broker_timestamp=plum.now().format("YYYY-MM-DD HH:mm:ss"),
                     side=position_dict["side"],
                     filled_quantity=int(position_dict["quantity"]),
@@ -49,6 +76,7 @@ class Paper(Bypass):
                 if not self._orders.empty:
                     df = pd.concat([self._orders, df], ignore_index=True)
                 self._orders = df
+            return order_id
         except Exception as e:
             print(f"{e} exception while placing order")
 
@@ -98,16 +126,20 @@ class Paper(Bypass):
             result_df["filled_quantity_buy"] - result_df["filled_quantity_sell"]
         )
         result_df["urmtom"] = result_df.apply(
-            lambda row: 0
-            if row["quantity"] == 0
-            else (row["average_price_buy"] - row["filled_quantity_sell"])
-            * row["quantity"],
+            lambda row: (
+                0
+                if row["quantity"] == 0
+                else (row["average_price_buy"] - row["filled_quantity_sell"])
+                * row["quantity"]
+            ),
             axis=1,
         )
         result_df["rpnl"] = result_df.apply(
-            lambda row: row["average_price_sell"] - row["average_price_buy"]
-            if row["quantity"] == 0
-            else 0,
+            lambda row: (
+                row["average_price_sell"] - row["average_price_buy"]
+                if row["quantity"] == 0
+                else 0
+            ),
             axis=1,
         )
         result_df.drop(
