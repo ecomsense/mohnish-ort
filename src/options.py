@@ -6,6 +6,8 @@ class Options:
         self.buy_params = {}
         self.short_id = 0
         self.short_params = {}
+        self.tradingsymbol = ""
+        self.instrument_token = 0
 
 
 class Calls(Options):

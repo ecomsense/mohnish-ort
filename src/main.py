@@ -1,3 +1,4 @@
+from pprint import pprint
 from traceback import print_exc
 
 from toolkit.kokoo import is_time_past, timer
@@ -23,7 +24,7 @@ class TradingStrategy:
         self.quantity = settings["quantity"]
         self.stop_loss = settings["stop_loss"]
         self.expiry_offset = settings.get("expiry_offset", 1)
-        self.expiry = self.symbols.get_expiry(expiry_offset=self.expiry_offset)
+        # self.expiry = self.symbols.get_expiry(expiry_offset=self.expiry_offset)
         self.help = Helper(settings["quantity"])
         self.ce = Calls()
         self.pe = Puts()
@@ -39,11 +40,12 @@ class TradingStrategy:
 
         # build option chain
         bn_ltp = self.ltp_from_ws_response(self.symbols.instrument_token)
-        tokens_from_symbols = self.symbols.build_chain(bn_ltp)
-        self.quotes = self.ws.ltp(tokens_from_symbols)
+        tokens = self.symbols.build_chain(bn_ltp, full_chain=True)
+        self.quotes = self.ws.ltp(tokens)
 
     def ltp_from_ws_response(self, instrument_token):
         try:
+            logging.debug(f"incoming token({instrument_token})")
             self.quotes = self.ws.ltp()
             last_price = [
                 d["last_price"]
@@ -51,28 +53,37 @@ class TradingStrategy:
                 if d["instrument_token"] == instrument_token
             ][0]
             if last_price is None:
-                raise Exception("ltp error")
+                raise Exception("price is None")
             return last_price
         except Exception as e:
             print(f"ltp error: {e}")
             print_exc()
-            __import__("sys").exit(1)
 
     def short(self, option):
         try:
-            bn_ltp = self.ltp_from_ws_response(self.symbols.instrument_token)
+            bn_ltp = None
+            while bn_ltp is None:
+                bn_ltp = self.ltp_from_ws_response(self.symbols.instrument_token)
+                logging.debug("WAITING FOR UNDERLYING LTP")
             ce_symbol, pe_symbol = self.symbols.get_option_symbols(bn_ltp)
-            tradingsymbol = ce_symbol if isinstance(option, Calls) else pe_symbol
-            instrument_token = self.symbols.tokens_from_symbols(tradingsymbol)[0]
-            logging.debug(f"{tradingsymbol} / {instrument_token})")
+            option.tradingsymbol = ce_symbol if isinstance(option, Calls) else pe_symbol
+            option.instrument_token = self.symbols.tokens_from_symbols(
+                option.tradingsymbol
+            )[0]["instrument_token"]
+            logging.debug(f"{option.tradingsymbol} / {option.instrument_token})")
+            last_price = None
+            while last_price is None:
+                last_price = self.ltp_from_ws_response(option.instrument_token)
+                logging.debug("WAITING FOR OPTIONS LTP")
             params = {
-                "symbol": tradingsymbol,
+                "symbol": option.tradingsymbol,
                 "side": "SELL",
                 "order_type": "MARKET",
-                "last_price": self.ltp_from_ws_response(instrument_token),
+                "last_price": last_price,
             }
             logging.debug(f"enter params: {params}")
             option.short_id = self.help.enter(params)
+            logging.info(f"short_id: {option.short_id}")
             option.short_params = params
 
             params["side"] = "BUY"
@@ -80,6 +91,7 @@ class TradingStrategy:
             params["quantity"] = self.quantity * 2
             params["trigger_price"] = params["last_price"] + self.stop_loss
             option.buy_id = self.help.enter(params)
+            logging.info(f"buy_id: {option.buy_id}")
             option.buy_params = params
         except Exception as e:
             logging.error(f"short error: {e}")
@@ -105,7 +117,7 @@ class TradingStrategy:
                 return True
 
             flag = False
-            for dct in self.quotes:
+            for dct in self.orders:
                 if is_subset(subset, dct):
                     flag = True
                     break
@@ -117,27 +129,45 @@ class TradingStrategy:
     def check_support_resistance_levels(self):
         return True
 
+    def is_price_above(self, option):
+        current_price = None
+        while current_price is None:
+            current_price = self.ltp_from_ws_response(option.instrument_token)
+        if current_price > option.buy_params["last_price"]:
+            return True
+        return False
+
     def run(self):
-        while True:
-            self.orders = self.help.api().orders
-            self.quotes = self.ws.ltp()
-            lst = [self.ce, self.pe]
-            for opt in lst:
-                if opt.status == -1:
-                    subset = {"order_id": opt.buy_id, "status": "COMPLETE"}
-                    if self.is_order_complete(subset):
-                        opt.status = 1
-                elif opt.status == 1:
-                    if self.check_support_resistance_levels():
-                        # sell existing position
-                        self.help.exit(opt.buy_params)
-                        opt.status = 0
-                elif opt.status == 0:
-                    # short new position
-                    self.short(opt)
-                    opt.status = -1
-            timer(1)
-            logging.debug("sleeping")
+        try:
+            while True:
+                self.orders = self.help.api().orders
+                self.quotes = self.ws.ltp()
+                lst = [self.ce, self.pe]
+                for opt in lst:
+                    if opt.status == -1:
+                        subset = {"order_id": opt.buy_id, "status": "COMPLETE"}
+                        if self.is_order_complete(subset):
+                            opt.status = 1
+                        elif self.is_price_above(opt):
+                            opt.buy_params["order_id"] = opt.buy_id
+                            opt.buy_params["order_type"] = "MARKET"
+                            self.help.api().order_modify(**opt.buy_params)
+                            opt.status = 1
+                    elif opt.status == 1:
+                        if self.check_support_resistance_levels():
+                            # sell existing position
+                            self.help.exit(opt.buy_params)
+                            opt.status = 0
+                    elif opt.status == 0:
+                        # short new position
+                        self.short(opt)
+                        opt.status = -1
+                pprint(vars(self.ce))
+                pprint(vars(self.pe))
+                timer(1)
+        except Exception as e:
+            print(f"run error: {e}")
+            print_exc()
 
 
 def root():

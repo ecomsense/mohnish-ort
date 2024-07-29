@@ -22,6 +22,7 @@ def generate_unique_id():
 
 class Paper(Bypass):
     cols = [
+        "order_id",
         "broker_timestamp",
         "side",
         "filled_quantity",
@@ -47,15 +48,19 @@ class Paper(Bypass):
     def orders(self):
         list_of_orders = self._orders
         pd.DataFrame(list_of_orders).to_csv(S_DATA + "orders.csv", index=False)
-        return list_of_orders
+        return list_of_orders.to_dict(orient="records")
 
     def order_cancel(self, **args):
         pass
 
     def order_place(self, **position_dict):
         try:
-            order_id = generate_unique_id()
-            if position_dict["order_type"].upper() == "M":
+            if not position_dict.get("order_id", None):
+                order_id = generate_unique_id()
+            else:
+                order_id = position_dict["order_id"]
+
+            if position_dict["order_type"][0].upper() == "M":
                 args = dict(
                     order_id=order_id,
                     broker_timestamp=plum.now().format("YYYY-MM-DD HH:mm:ss"),
@@ -65,12 +70,6 @@ class Paper(Bypass):
                     remarks=position_dict["tag"],
                     average_price=0,
                 )
-                """
-                ret = self.finvasia.searchscrip("NFO", position_dict["symbol"])
-                if ret is not None:
-                    token = ret["values"][0]["token"]
-                    args["average_price"] = ApiHelper().scriptinfo(self, "NFO", token)
-                """
                 df = pd.DataFrame(columns=self.cols, data=[args])
 
                 if not self._orders.empty:
@@ -82,9 +81,12 @@ class Paper(Bypass):
 
     def order_modify(self, **args):
         if not args.get("order_type", None):
-            args["order_type"] = "MKT"
+            args["order_type"] = "MARKET"
 
-        if args["order_type"] == "MKT":
+        if args["order_type"][0].upper() == "M":
+            print(self._orders)
+            # drop row whose order_id matches
+            self._orders = self._orders[self._orders["order_id"] != args["order_id"]]
             self.order_place(**args)
         else:
             print(

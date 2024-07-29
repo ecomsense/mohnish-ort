@@ -1,4 +1,4 @@
-from datetime import datetime
+from pprint import pprint
 from traceback import print_exc
 from typing import Any, Dict, List
 
@@ -67,7 +67,8 @@ def dict_from_yml(key_to_search, value_to_match):
 
 class Symbols:
     def __init__(self, **kwargs):
-        print("initializing symbols", kwargs)
+        logging.debug("initializing symbols")
+        pprint(kwargs)
         if any(kwargs):
             # create property from dictionary
             for key, value in kwargs.items():
@@ -81,8 +82,8 @@ class Symbols:
             filtered = []
             for symtoken in self.symbols_from_json:
                 if symtoken["tradingsymbol"] in symbols:
-                    print("found")
                     filtered.append(symtoken)
+            print(filtered)
             return filtered
         except Exception as e:
             print(f"tokens from symbols error: {e}")
@@ -158,23 +159,29 @@ class Symbols:
             print(f"generate_symbols error: {e}")
             print_exc()
 
-    def build_chain(self, ltp, full_chain=True):
+    def build_chain(self, ltp, full_chain=False):
         """
         builds tokens required for the entire chain
         """
+        txt = "Build chain" if full_chain else "Straddle"
+        logging.debug(f" {txt}")
         atm = self.calc_atm_from_ltp(ltp)
         lst = []
         lst.append(self.base + self.expiry + str(atm) + "CE")
         lst.append(self.base + self.expiry + str(atm) + "PE")
         if full_chain:
             for v in range(1, self.depth):
-                lst.append(self.base + self.expiry + str(atm + v * self.diff) + "CE")
-                lst.append(self.base + self.expiry + str(atm + v * self.diff) + "PE")
-                lst.append(self.base + self.expiry + str(atm - v * self.diff) + "CE")
-                lst.append(self.base + self.expiry + str(atm - v * self.diff) + "PE")
-        filter = self.tokens_from_symbols(lst)
-        print(f"Build chain {filter}")
-        return filter
+                txt = self.base + self.expiry + str(atm + (v * self.diff)) + "CE"
+                lst.append(txt)
+                lst.append(self.base + self.expiry + str(atm + (v * self.diff)) + "PE")
+                lst.append(self.base + self.expiry + str(atm - (v * self.diff)) + "CE")
+                lst.append(self.base + self.expiry + str(atm - (v * self.diff)) + "PE")
+        filtered = self.tokens_from_symbols(lst)
+        if not any(filtered):
+            raise Exception("tokens not found")
+        elif full_chain:
+            self.symbols_from_json = filtered
+        return filtered
 
     def get_expiry(self, expiry_offset=0):
         """
@@ -213,10 +220,10 @@ class Symbols:
 
     def get_option_symbols(self, ltp):
         straddle = self.build_chain(ltp, full_chain=False)
-        print(f"Straddle {straddle}")
-
+        print(f"{straddle=}")
         # Use dictionary comprehension to map instrument types to their symbols
         symbols = {item["instrument_type"]: item["tradingsymbol"] for item in straddle}
+        print(f"{symbols=}")
 
         # Extract the symbols for CE and PE
         ce_symbol = symbols.get("CE")
