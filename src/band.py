@@ -1,9 +1,10 @@
 from pprint import pprint
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 
 
-def make_array(lst_of_dct):
+def pfx_and_sfx(lst_of_dct: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for d in lst_of_dct:
         lst = d["sr"]
         new_list = [0]
@@ -14,8 +15,12 @@ def make_array(lst_of_dct):
     return lst_of_dct
 
 
-def extend_dict(support_resistance, prices, key_to_match):
-    # merge dictionary of lists based on tradingsymbol as key
+def unify_dict(
+    support_resistance: List[Dict[str, Any]],
+    prices: List[Dict[str, Any]],
+    key_to_match: str,
+) -> List[Dict[str, Any]]:
+    # merge dictionary of lists based on instrument_token as key
     for d in support_resistance:
         for p in prices:
             if d[key_to_match] == p[key_to_match]:
@@ -23,7 +28,7 @@ def extend_dict(support_resistance, prices, key_to_match):
     return support_resistance
 
 
-def find_bounds(lst, V):
+def _find_band(lst: List[Tuple], V: float) -> Tuple[float, float]:
     arr = np.array(lst)
 
     # Find the index where V would be inserted to maintain order
@@ -49,7 +54,7 @@ def find_bounds(lst, V):
     return lower_bound, upper_bound
 
 
-def check_any_out_of_bounds_np(bounds: list, values: list):
+def check_any_out_of_bounds_np(lists_to_check: Tuple) -> bool:
     """
     Check if any value is out of bounds using NumPy arrays for efficiency.
 
@@ -57,6 +62,7 @@ def check_any_out_of_bounds_np(bounds: list, values: list):
     :param values: A list of values to check against the bounds.
     :return: True if any value is out of bounds, False otherwise.
     """
+    bounds, values = lists_to_check
     # Convert bounds and values to NumPy arrays
     bounds = np.array(bounds)
     values = np.array(values)
@@ -74,36 +80,42 @@ def check_any_out_of_bounds_np(bounds: list, values: list):
     return any_out_of_bounds
 
 
-def is_signal(support_resistance, prices):
-    # do in place replacement on sr values after adding sfx and pfx
-    support_resistance = make_array(support_resistance)
-
-    # update last price for each dictionary
-    lst = extend_dict(support_resistance, prices, "tradingsymbol")
+def find_band(lst: List[Dict[str, Any]]) -> Tuple[List[Tuple], List[float]]:
 
     # find bands
     for d in lst:
-        d["band"] = find_bounds(d["sr"], d["last_price"])
+        d["band"] = _find_band(d["sr"], d["last_price"])
     pprint(lst)
 
-    lst_of_bands = [d["band"] for d in lst]
-    lst_of_prices = [d["last_price"] for d in lst]
-    any_out_of_bounds = check_any_out_of_bounds_np(lst_of_bands, lst_of_prices)
-    return any_out_of_bounds
+    lst_of_bands: List[Tuple] = [d["band"] for d in lst]
+    lst_of_prices: List[float] = [d["last_price"] for d in lst]
+    return lst_of_bands, lst_of_prices
 
 
 if __name__ == "__main__":
     support_resistance = [
-        {"tradingsymbol": "HDFCBANK", "sr": [1, 25, 30]},
-        {"tradingsymbol": "AXISBANK", "sr": [1, 200, 3500]},
-        {"tradingsymbol": "ICICIBANK", "sr": [1, 25, 30]},
+        {"instrument_token": "HDFCBANK", "sr": [1, 25, 30]},
+        {"instrument_token": "AXISBANK", "sr": [1, 200, 3500]},
+        {"instrument_token": "ICICIBANK", "sr": [1, 25, 30]},
     ]
 
     prices = [
-        {"tradingsymbol": "HDFCBANK", "last_price": 28, "instrument_token": 1},
-        {"tradingsymbol": "AXISBANK", "last_price": 3500, "instrument_token": 2},
-        {"tradingsymbol": "ICICIBANK", "last_price": 25, "instrument_token": 3},
-        {"tradingsymbol": "NOSTOCK", "last_price": 25, "instrument_token": 3},
+        {"instrument_token": "HDFCBANK", "last_price": 28},
+        {"instrument_token": "AXISBANK", "last_price": 3500},
+        {"instrument_token": "ICICIBANK", "last_price": 25},
+        {"instrument_token": "NOSTOCK", "last_price": 25},
     ]
 
-    print(is_signal(support_resistance, prices))
+    # do in place replacement on sr values after adding sfx and pfx
+    support_resistance = pfx_and_sfx(support_resistance)
+
+    # update last price for each dictionary
+    lst = unify_dict(support_resistance, prices, "instrument_token")
+
+    lst_of_bands, lst_of_prices = find_band(lst)
+
+    lst_of_bands.append((0, 1))
+    lst_of_prices.append(3)
+    print(lst_of_bands, lst_of_prices)
+    lists_to_check = lst_of_bands, lst_of_prices
+    print(check_any_out_of_bounds_np(lists_to_check))

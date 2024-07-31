@@ -6,19 +6,37 @@ from api import Helper
 from constants import D_SYMBOL, O_CNFG, logging
 
 
+def filter_ws_keys(incoming: List[Dict]):
+    keys = ["instrument_token", "last_price"]
+    new_lst = []
+    if incoming and isinstance(incoming, list) and any(incoming):
+        for dct in incoming:
+            new_dct = {}
+            for key in keys:
+                if dct.get(key, None):
+                    new_dct[key] = dct[key]
+                    new_lst.append(new_dct)
+    return new_lst
+
+
 class Wsocket:
-    def filter_ws_keys(self, incoming: List[Dict]):
-        keys = ["instrument_token", "last_price"]
-        new_lst = []
-        if incoming and isinstance(incoming, list) and any(incoming):
-            for dct in incoming:
-                new_dct = {}
-                for key in keys:
-                    if dct.get(key, None):
-                        new_dct[key] = dct[key]
-                        new_lst.append(new_dct)
-        if any(new_lst):
-            self.ticks = new_lst
+    def update_ticks(self, incoming_ticks):
+        incoming_ticks = filter_ws_keys(incoming_ticks)
+
+        for incoming_tick in incoming_ticks:
+            instrument_token = incoming_tick.get("instrument_token")
+            found = False
+
+            for tick in self.ticks:
+                if tick.get("instrument_token") == instrument_token:
+                    # Update the existing tick's last price
+                    tick["last_price"] = incoming_tick.get("last_price")
+                    found = True
+                    break
+
+            if not found:
+                # If no existing tick is found, add the new tick
+                self.ticks.append(incoming_tick)
 
     def __init__(self):
         self.ticks = []
@@ -53,7 +71,7 @@ class Wsocket:
         # print(ticks)
         if self.tokens is not None:
             ws.subscribe(self.tokens)
-        self.filter_ws_keys(ticks)
+        self.update_ticks(ticks)
 
     def on_connect(self, ws, response):
         if response:

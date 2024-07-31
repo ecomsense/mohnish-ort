@@ -82,8 +82,8 @@ class Symbols:
             filtered = []
             for symtoken in self.symbols_from_json:
                 if symtoken["tradingsymbol"] in symbols:
+                    logging.debug(symtoken["tradingsymbol"])
                     filtered.append(symtoken)
-            print(filtered)
             return filtered
         except Exception as e:
             print(f"tokens from symbols error: {e}")
@@ -166,6 +166,7 @@ class Symbols:
         txt = "Build chain" if full_chain else "Straddle"
         logging.debug(f" {txt}")
         atm = self.calc_atm_from_ltp(ltp)
+        logging.debug(f"ATM: {atm}")
         lst = []
         lst.append(self.base + self.expiry + str(atm) + "CE")
         lst.append(self.base + self.expiry + str(atm) + "PE")
@@ -231,3 +232,10 @@ class Symbols:
 
         logging.debug(f"CE symbol: {ce_symbol}, PE symbol: {pe_symbol}")
         return ce_symbol, pe_symbol
+
+
+if __name__ == "__main__":
+    kwargs = dict_from_yml("base", "BANKNIFTY")
+    s = Symbols(**kwargs)
+    ce_symbol, pe_symbol = s.get_option_symbols(54170)
+    print(ce_symbol, pe_symbol)

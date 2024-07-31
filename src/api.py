@@ -123,6 +123,7 @@ class Helper:
         try:
             kwargs["order_type"] = "MARKET"
             kwargs["price"] = 0.0
+            kwargs["tag"] = "modify"
             return self.api().order_modify(**kwargs)
         except Exception as e:
             logging.error(f"exit: {e}")
@@ -139,8 +140,8 @@ class Helper:
         """
         try:
             params = Order().to_dict()
-            print("enter", kwargs)
             params.update(kwargs)
+            print("enter", kwargs)
             return self.api().order_place(**params)
         except Exception as e:
             logging.error(f"enter: {e}")

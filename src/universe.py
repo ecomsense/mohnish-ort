@@ -1,29 +1,15 @@
-from constants import O_FUTL, S_DATA
+from symbols import Symbols
 
 
-def input():
-    """
-    reads universe csv file
-    """
-    # TODO
-    """
-    Reads universe csv file from data folder
-    """
-    df = O_FUTL.get_df_fm_csv(S_DATA, "universe.csv", [])
-    print(df)
-    return df
-
-
-def output():
-    """
-    writes out.csv to file
-    """
-    input_df = input()
-    df = input_df.to_csv(S_DATA + "out.csv", index=False)
-    dct = df.to_dict(orient="records")
-    return dct
-
-
-def main():
-    dct = output()
-    return dct
+def read_supp_and_res():
+    srs = [
+        {"tradingsymbol": "HDFCBANK", "sr": [1600, 1650, 1699, 1725, 1775, 1900]},
+        {"tradingsymbol": "ICICIBANK", "sr": [1000, 1100, 1200, 1300, 1500, 1550]},
+    ]
+    kwargs = {"exchange": "NSE"}
+    nse_symbols = Symbols(**kwargs)
+    for sr in srs:
+        sr["instrument_token"] = nse_symbols.tokens_from_symbols(sr["tradingsymbol"])[
+            0
+        ]["instrument_token"]
+    return srs

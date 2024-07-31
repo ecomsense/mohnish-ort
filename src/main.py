@@ -1,21 +1,14 @@
-from pprint import pprint
 from traceback import print_exc
 
 from toolkit.kokoo import is_time_past, timer
 
 from api import Helper
+from band import check_any_out_of_bounds_np, find_band, pfx_and_sfx, unify_dict
 from constants import O_SETG, logging
 from options import Calls, Puts
 from symbols import Symbols, dict_from_yml, dump
+from universe import read_supp_and_res
 from wsocket import Wsocket
-
-SUPPORT_RESISTANCE_LEVELS = {
-    "BANKNIFTY": [28000, 30000, 32000, 36000, 38000, 40000],
-    "HDFC": [1900, 2000, 2100, 2600, 2700, 2800],
-    "ICICI": [520, 540, 560, 700, 720, 740],
-    "SBI": [320, 340, 360, 500, 520, 540],
-    "AXIS": [620, 640, 660, 800, 820, 840],
-}
 
 
 class TradingStrategy:
@@ -28,6 +21,9 @@ class TradingStrategy:
         self.help = Helper(settings["quantity"])
         self.ce = Calls()
         self.pe = Puts()
+        support_resistance = read_supp_and_res()
+        # do in place replacement on sr values after adding sfx and pfx
+        self.sr = pfx_and_sfx(support_resistance)
 
         logging.debug("subscribing index from symbols yml automtically")
         self.ws: object = Wsocket()
@@ -42,6 +38,10 @@ class TradingStrategy:
         bn_ltp = self.ltp_from_ws_response(self.symbols.instrument_token)
         tokens = self.symbols.build_chain(bn_ltp, full_chain=True)
         self.quotes = self.ws.ltp(tokens)
+
+        # subscribe to support and resistance
+        # sr_tokens = [dct["instrument_token"] for dct in self.sr]
+        self.quotes = self.ws.ltp(self.sr)
 
     def ltp_from_ws_response(self, instrument_token):
         try:
@@ -90,6 +90,7 @@ class TradingStrategy:
             params["order_type"] = "SL"
             params["quantity"] = self.quantity * 2
             params["trigger_price"] = params["last_price"] + self.stop_loss
+            params["tag"] = "stoploss"
             option.buy_id = self.help.enter(params)
             logging.info(f"buy_id: {option.buy_id}")
             option.buy_params = params
@@ -126,14 +127,21 @@ class TradingStrategy:
         finally:
             return flag
 
-    def check_support_resistance_levels(self):
-        return True
+    def set_bounds_to_check(self, opt):
+        # update last price for each dictionary
+        lst = unify_dict(self.sr, self.quotes, "instrument_token")
+        lst_of_bands, lst_of_prices = find_band(lst)
+        median = opt.buy_params["last_price"]
+        lst_of_bands.append((median - self.stop_loss, median + self.stop_loss))
+        lst_of_prices.append(median)
+        print("setting bounds", lst_of_bands, lst_of_prices)
+        self.bounds = lst_of_bands, lst_of_prices
 
     def is_price_above(self, option):
         current_price = None
         while current_price is None:
             current_price = self.ltp_from_ws_response(option.instrument_token)
-        if current_price > option.buy_params["last_price"]:
+        if current_price > option.buy_params["trigger_price"]:
             return True
         return False
 
@@ -153,8 +161,12 @@ class TradingStrategy:
                             opt.buy_params["order_type"] = "MARKET"
                             self.help.api().order_modify(**opt.buy_params)
                             opt.status = 1
+                        ## status is a fresh buy
+                        if opt.status == 1:
+                            self.set_bounds_to_check(opt)
                     elif opt.status == 1:
-                        if self.check_support_resistance_levels():
+                        print(self.bounds)
+                        if check_any_out_of_bounds_np(self.bounds):
                             # sell existing position
                             self.help.exit(opt.buy_params)
                             opt.status = 0
@@ -162,8 +174,8 @@ class TradingStrategy:
                         # short new position
                         self.short(opt)
                         opt.status = -1
-                pprint(vars(self.ce))
-                pprint(vars(self.pe))
+                print(vars(self.ce))
+                print(vars(self.pe))
                 timer(1)
         except Exception as e:
             print(f"run error: {e}")
