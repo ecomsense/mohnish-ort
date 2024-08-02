@@ -1,3 +1,4 @@
+from functools import wraps
 from traceback import print_exc
 
 from toolkit.kokoo import is_time_past, timer
@@ -6,9 +7,22 @@ from api import Helper
 from band import check_any_out_of_bounds_np, find_band, pfx_and_sfx, unify_dict
 from constants import O_SETG, logging
 from options import Calls, Puts
+from signals import read_supp_and_res
 from symbols import Symbols, dict_from_yml, dump
-from universe import read_supp_and_res
 from wsocket import Wsocket
+
+
+def retry_until_not_none(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        result = None
+        while result is None:
+            result = func(*args, **kwargs)
+            if result is None:
+                logging.debug("WAITING FOR LTP")
+        return result
+
+    return wrapper
 
 
 class TradingStrategy:
@@ -43,6 +57,7 @@ class TradingStrategy:
         # sr_tokens = [dct["instrument_token"] for dct in self.sr]
         self.quotes = self.ws.ltp(self.sr)
 
+    @retry_until_not_none
     def ltp_from_ws_response(self, instrument_token):
         try:
             logging.debug(f"incoming token({instrument_token})")
@@ -61,20 +76,14 @@ class TradingStrategy:
 
     def short(self, option):
         try:
-            bn_ltp = None
-            while bn_ltp is None:
-                bn_ltp = self.ltp_from_ws_response(self.symbols.instrument_token)
-                logging.debug("WAITING FOR UNDERLYING LTP")
+            bn_ltp = self.ltp_from_ws_response(self.symbols.instrument_token)
             ce_symbol, pe_symbol = self.symbols.get_option_symbols(bn_ltp)
             option.tradingsymbol = ce_symbol if isinstance(option, Calls) else pe_symbol
             option.instrument_token = self.symbols.tokens_from_symbols(
                 option.tradingsymbol
             )[0]["instrument_token"]
             logging.debug(f"{option.tradingsymbol} / {option.instrument_token})")
-            last_price = None
-            while last_price is None:
-                last_price = self.ltp_from_ws_response(option.instrument_token)
-                logging.debug("WAITING FOR OPTIONS LTP")
+            last_price = self.ltp_from_ws_response(option.instrument_token)
             params = {
                 "symbol": option.tradingsymbol,
                 "side": "SELL",
@@ -138,9 +147,7 @@ class TradingStrategy:
         self.bounds = lst_of_bands, lst_of_prices
 
     def is_price_above(self, option):
-        current_price = None
-        while current_price is None:
-            current_price = self.ltp_from_ws_response(option.instrument_token)
+        current_price = self.ltp_from_ws_response(option.instrument_token)
         if current_price > option.buy_params["trigger_price"]:
             return True
         return False
