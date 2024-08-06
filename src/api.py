@@ -1,10 +1,7 @@
 from traceback import print_exc
-from typing import List
-
-import pandas as pd
-import pendulum as plum
 
 from constants import O_CNFG, O_FUTL, O_SETG, S_DATA, logging
+from models import Order
 from paper import Paper
 
 
@@ -39,6 +36,8 @@ def get_bypass():
             raise Exception("unable to authenticate")
     except Exception as e:
         print(f"unable to create bypass object {e}")
+        remove_token(tokpath)
+        get_bypass()
         print_exc()
     else:
         return bypass
@@ -49,19 +48,22 @@ def get_zerodha():
         from stock_brokers.zerodha.zerodha import Zerodha
 
         dct = O_CNFG["zerodha"]
+        tokpath = S_DATA + dct["userid"] + ".txt"
         zera = Zerodha(
             user_id=dct["userid"],
             password=dct["password"],
             totp=dct["totp"],
             api_key=dct["api_key"],
             secret=dct["secret"],
-            tokpath=S_DATA + dct["userid"] + ".txt",
+            tokpath=tokpath,
         )
         if not zera.authenticate():
             raise Exception("unable to authenticate")
 
     except Exception as e:
         print(f"exception while creating zerodha object {e}")
+        remove_token(tokpath)
+        get_zerodha()
     else:
         return zera
 
@@ -77,27 +79,6 @@ def login():
         return get_zerodha()
 
 
-class Order:
-    quantity = 0
-
-    @classmethod
-    def set_quantity(cls, quantity):
-        cls.quantity = quantity
-
-    def __init__(self):
-        self.quantity = Order.quantity  # Access class-level quantity
-
-    def to_dict(self):
-        return {
-            "exchange": "NFO",
-            "quantity": self.quantity,
-            "order_type": "MARKET",
-            "product": "MIS",
-            "validity": "DAY",
-            "tag": "enter",
-        }
-
-
 class Helper:
     api_object = None
 
@@ -110,7 +91,7 @@ class Helper:
     def __init__(self, initial_quantity):
         Order.set_quantity(initial_quantity)
 
-    def exit(self, kwargs):
+    def cover_and_buy(self, kwargs):
         """
         modifies order from order book
 
@@ -123,8 +104,7 @@ class Helper:
         try:
             kwargs["order_type"] = "MARKET"
             kwargs["price"] = 0.0
-            kwargs["tag"] = "modify"
-            return self.api().order_modify(**kwargs)
+            return self.api().order_modify(kwargs)
         except Exception as e:
             logging.error(f"exit: {e}")
             print_exc()
@@ -146,3 +126,39 @@ class Helper:
         except Exception as e:
             logging.error(f"enter: {e}")
             print_exc()
+
+
+if __name__ == "__main__":
+    quantity = 15
+    help = Helper(15)
+    params = {
+        "symbol": "NIFTY100CE",
+        "side": "SELL",
+        "order_type": "MARKET",
+        "last_price": 20,
+    }
+    short_id = help.enter(params)
+    short_params = params
+    logging.info(f"short_id: {short_id}")
+    logging.debug(f"short params: {params}")
+
+    params["side"] = "BUY"
+    params["order_type"] = "SL"
+    params["quantity"] = quantity * 2
+    params["trigger_price"] = params["last_price"] + 60
+    params["tag"] = "stoploss"
+
+    buy_id = help.enter(params)
+    buy_params = params
+    logging.info(f"buy_id: {buy_id}")
+    logging.debug(f"buy params: {params}")
+
+    """
+        exit
+    """
+    buy_params["order_id"] = buy_id
+    help.exit(buy_params)
+    ord = help.api().orders
+    print(ord)
+    pos = help.api().positions
+    print(pos)

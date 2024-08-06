@@ -6,8 +6,8 @@ description:
 """
 
 from os import path
-from traceback import print_exc
 from pprint import pprint
+from traceback import print_exc
 
 """
     description:

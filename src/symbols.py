@@ -51,20 +51,6 @@ def dump():
         print_exc()
 
 
-def dict_from_yml(key_to_search, value_to_match):
-    try:
-        dct = {}
-        sym_from_yml = O_FUTL.get_lst_fm_yml(S_DATA + "symbols.yml")
-        for _, dct in sym_from_yml.items():
-            if isinstance(dct, dict) and dct[key_to_search] == value_to_match:
-                return dct
-        print(f"{dct=}")
-        return dct
-    except Exception as e:
-        print(f"dict from yml error: {e}")
-        print_exc()
-
-
 class Symbols:
     def __init__(self, **kwargs):
         logging.debug("initializing symbols")
@@ -82,7 +68,6 @@ class Symbols:
             filtered = []
             for symtoken in self.symbols_from_json:
                 if symtoken["tradingsymbol"] in symbols:
-                    logging.debug(symtoken["tradingsymbol"])
                     filtered.append(symtoken)
             return filtered
         except Exception as e:
@@ -152,7 +137,6 @@ class Symbols:
             atm = self.calc_atm_from_ltp(ltp)
             depth = self.depth if full_chain else 0
             symbols = self._generate_symbols(atm, depth)
-            logging.debug(f"Symbols: {symbols}")
             filter = self.tokens_from_symbols(symbols)
             return filter
         except Exception as e:
@@ -164,9 +148,7 @@ class Symbols:
         builds tokens required for the entire chain
         """
         txt = "Build chain" if full_chain else "Straddle"
-        logging.debug(f" {txt}")
         atm = self.calc_atm_from_ltp(ltp)
-        logging.debug(f"ATM: {atm}")
         lst = []
         lst.append(self.base + self.expiry + str(atm) + "CE")
         lst.append(self.base + self.expiry + str(atm) + "PE")
@@ -221,7 +203,6 @@ class Symbols:
 
     def get_option_symbols(self, ltp):
         straddle = self.build_chain(ltp, full_chain=False)
-        print(f"{straddle=}")
         # Use dictionary comprehension to map instrument types to their symbols
         symbols = {item["instrument_type"]: item["tradingsymbol"] for item in straddle}
         print(f"{symbols=}")
@@ -235,6 +216,8 @@ class Symbols:
 
 
 if __name__ == "__main__":
+    from utils import dict_from_yml
+
     kwargs = dict_from_yml("base", "BANKNIFTY")
     s = Symbols(**kwargs)
     ce_symbol, pe_symbol = s.get_option_symbols(54170)
