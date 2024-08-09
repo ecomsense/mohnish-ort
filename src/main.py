@@ -1,6 +1,6 @@
 from traceback import print_exc
 
-from toolkit.kokoo import is_time_past, timer
+from toolkit.kokoo import blink, is_time_past
 
 from api import Helper
 from constants import O_SETG, logging
@@ -57,10 +57,8 @@ class TradingStrategy:
             last_price = [
                 d["last_price"] for d in self.quotes if d["instrument_token"] == lst[0]
             ][0]
-            timer(1)
             if last_price is None:
                 raise Exception("price is None")
-            logging.debug(f"{lst[1]}: {last_price}")
             return last_price
         except Exception as e:
             print(f"ltp error: {e}")
@@ -205,7 +203,7 @@ class TradingStrategy:
                         self.short(opt)
                         opt.status = -1
                 # print(self.help.api().positions)
-                timer(1)
+                blink()
             else:
                 lst_of_orders = self.help.api().orders
                 for order in lst_of_orders:
@@ -252,7 +250,7 @@ def root():
         symbol_settings = dict_from_yml("base", "BANKNIFTY")
         while not is_time_past(entry_time):
             logging.info(f"z #@! zZZ sleeping till {entry_time}")
-            timer(1)
+            blink()
         TradingStrategy(strategy_settings, symbol_settings).run()
     except Exception as e:
         print(f"root error: {e}")

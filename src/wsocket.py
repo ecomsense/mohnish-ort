@@ -65,12 +65,14 @@ class Wsocket:
         if tokens:
             tokens = [dct["instrument_token"] for dct in tokens]
             self.tokens = list(set(self.tokens + tokens))
+            # self.tokens = tokens
         return self.ticks
 
     def on_ticks(self, ws, ticks):
         # print(ticks)
-        if self.tokens is not None:
+        if self.tokens:
             ws.subscribe(self.tokens)
+            # self.tokens = False
         self.update_ticks(ticks)
 
     def on_connect(self, ws, response):
@@ -90,7 +92,6 @@ class Wsocket:
         logging.error(
             "Connection error: {code} - {reason}".format(code=code, reason=reason)
         )
-        ws.stop()
         ws.reconnect()
 
     def on_reconnect(self, ws, attempts_count):
@@ -110,8 +111,3 @@ if __name__ == "__main__":
         resp = ws.ltp()
         print(resp)
         __import__("time").sleep(1)
-
-    resp = False
-    while resp:
-        resp = ws.ltp([11005])
-        print("2", resp)
