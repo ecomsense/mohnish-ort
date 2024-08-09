@@ -87,15 +87,31 @@ class Wsocket:
 
     def on_error(self, ws, code, reason):
         # Callback when connection closed with error.
-        logging.info(
+        logging.error(
             "Connection error: {code} - {reason}".format(code=code, reason=reason)
         )
+        ws.stop()
+        ws.reconnect()
 
     def on_reconnect(self, ws, attempts_count):
         # Callback when reconnect is on progress
-        logging.info("Reconnecting: {}".format(attempts_count))
+        logging.warning("Reconnecting: {}".format(attempts_count))
 
     # Callback when all reconnect failed (exhausted max retries)
 
     def on_noreconnect(self, ws):
-        logging.info("Reconnect failed.")
+        logging.error("Reconnect failed.")
+
+
+if __name__ == "__main__":
+    ws = Wsocket()
+    resp = False
+    while not resp:
+        resp = ws.ltp()
+        print(resp)
+        __import__("time").sleep(1)
+
+    resp = False
+    while resp:
+        resp = ws.ltp([11005])
+        print("2", resp)
