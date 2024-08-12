@@ -129,6 +129,8 @@ class Helper:
 
 
 if __name__ == "__main__":
+    import pandas as pd
+
     quantity = 15
     help = Helper(15)
     """
@@ -160,5 +162,11 @@ if __name__ == "__main__":
     """
     ord = help.api().orders
     print(ord)
-    pos = help.api().positions
-    print(pos)
+    if any(ord):
+        df = pd.DataFrame(ord)
+        df = df[["symbol", "quantity", "side", "average_price", "status"]]
+        print(df)
+        pos = help.api().positions
+        df = pd.DataFrame(pos)
+        df = df[["symbol", "quantity", "unrealised", "m2m"]]
+        print(df)

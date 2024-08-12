@@ -208,11 +208,11 @@ class TradingStrategy:
             else:
                 lst_of_orders = self.help.api().orders
                 for order in lst_of_orders:
-                    if (
-                        order["status"] == "OPEN"
-                        or order["status"] == "TRIGGER PENDING"
-                    ):
-                        self.help.api().order_cancel(order["order_id"])
+                    try:
+                        if order["status"] in ["OPEN", "TRIGGER PENDING", None]:
+                            self.help.api().order_cancel(order["order_id"])
+                    except Exception as e:
+                        print(f"order {order} cancel error: {e}")
                 lst_of_pos = self.help.api().positions
                 for pos in lst_of_pos:
                     if pos["quantity"] != 0:
@@ -232,7 +232,8 @@ class TradingStrategy:
                             tag="exit",
                             last_price=last_price,
                         )
-                        self.help.api().order_place(args)
+                        resp = self.help.api().order_place(**args)
+                        logging.info(f"exit: {resp}")
                 # cancel orders
             #
         except Exception as e:
