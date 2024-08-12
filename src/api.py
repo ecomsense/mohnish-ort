@@ -131,6 +131,7 @@ class Helper:
 if __name__ == "__main__":
     quantity = 15
     help = Helper(15)
+    """
     params = {
         "symbol": "NIFTY100CE",
         "side": "SELL",
@@ -153,11 +154,10 @@ if __name__ == "__main__":
     logging.info(f"buy_id: {buy_id}")
     logging.debug(f"buy params: {params}")
 
-    """
-        exit
-    """
+    #exit
     buy_params["order_id"] = buy_id
     help.exit(buy_params)
+    """
     ord = help.api().orders
     print(ord)
     pos = help.api().positions

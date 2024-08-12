@@ -92,6 +92,7 @@ class TradingStrategy:
             params["order_type"] = "SL"
             params["quantity"] = self.quantity * 2
             params["trigger_price"] = params["last_price"] + self.stop_loss
+            params["price"] = params["trigger_price"] + 3
             params["tag"] = "stoploss"
 
             option.buy_id = self.help.enter(params)
@@ -195,7 +196,7 @@ class TradingStrategy:
                             kwargs["order_type"] = "MARKET"
                             kwargs["price"] = 0.0
                             kwargs["tag"] = "exit"
-                            kwargs.pop("order_id")
+                            kwargs.pop("order_id", None)
                             self.help.enter(kwargs)
                             opt.status = 0
                     elif opt.status == 0:
