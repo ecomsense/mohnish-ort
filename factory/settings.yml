@@ -1,8 +1,8 @@
 log:
   show: True
-  level: 10
+  level: 30
 program:
-  start: "0:15"
+  start: "9:30"
   stop: "15:15"
 trade:
   start: "9:30"
@@ -10,5 +10,6 @@ trade:
 strategy:
   base: "BANKNIFTY"
   stop_loss: 60
+  target: 100
   quantity: 15
 live: 0

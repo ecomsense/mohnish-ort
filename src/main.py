@@ -22,6 +22,7 @@ class TradingStrategy:
         self.symbols = Symbols(**symbol_settings)
         self.quantity = settings["quantity"]
         self.stop_loss = settings["stop_loss"]
+        self.target = settings["target"]
         self.expiry_offset = settings.get("expiry_offset", 1)
         # self.expiry = self.symbols.get_expiry(expiry_offset=self.expiry_offset)
         self.help = Helper(settings["quantity"])
@@ -137,7 +138,7 @@ class TradingStrategy:
         lst = unify_dict(self.sr, self.quotes, "instrument_token")
         lst_of_bands, lst_of_prices = find_band(lst)
         median = opt.buy_params["last_price"]
-        lst_of_bands.append((median - self.stop_loss, median + self.stop_loss + 40))
+        lst_of_bands.append((median - self.stop_loss, median + self.target))
         lst_of_prices.append(median)
         logging.info("setting bounds", lst_of_bands, lst_of_prices)
         opt.bounds = lst_of_bands, lst_of_prices
@@ -187,9 +188,7 @@ class TradingStrategy:
                         lst_of_prices.append(last_price_of_option)
                         opt.bounds = opt.bounds[0], lst_of_prices
                         print(opt.bounds)
-                        if check_any_out_of_bounds_np(
-                            opt.bounds
-                        ) and self.is_price_above(opt):
+                        if check_any_out_of_bounds_np(opt.bounds):
                             logging.info("out of bounds, exiting buy trade")
                             # sell existing position
                             kwargs = opt.buy_params.copy()
