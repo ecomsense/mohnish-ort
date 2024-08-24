@@ -137,18 +137,18 @@ class TradingStrategy:
         lst = unify_dict(self.sr, self.quotes, "instrument_token")
         lst_of_bands, lst_of_prices = find_band(lst)
         median = opt.buy_params["last_price"]
-        lst_of_bands.append((median - self.stop_loss, median + self.stop_loss))
+        lst_of_bands.append((median - self.stop_loss, median + self.stop_loss + 40))
         lst_of_prices.append(median)
         logging.info("setting bounds", lst_of_bands, lst_of_prices)
         opt.bounds = lst_of_bands, lst_of_prices
 
     def is_price_above(self, option):
         if option.buy_params["last_price"] > option.buy_params["trigger_price"]:
-            logging.debug(
-                f"SELL STOPPED: price above {option.buy_params['trigger_price']}"
-            )
+            logging.debug(f"price above buy order {option.buy_params['trigger_price']}")
             return True
-        logging.debug(f"sell not stopped {option.buy_params['trigger_price']}")
+        logging.debug(
+            f"buy to cover or buy trade not triggered for {option.buy_params['trigger_price']}"
+        )
         return False
 
     def run(self):
@@ -187,7 +187,9 @@ class TradingStrategy:
                         lst_of_prices.append(last_price_of_option)
                         opt.bounds = opt.bounds[0], lst_of_prices
                         print(opt.bounds)
-                        if check_any_out_of_bounds_np(opt.bounds):
+                        if check_any_out_of_bounds_np(
+                            opt.bounds
+                        ) and self.is_price_above(opt):
                             logging.info("out of bounds, exiting buy trade")
                             # sell existing position
                             kwargs = opt.buy_params.copy()
