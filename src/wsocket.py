@@ -27,7 +27,7 @@ class Wsocket:
             instrument_token = incoming_tick.get("instrument_token")
             found = False
 
-            for tick in self.ticks:
+            for tick in self._ltp:
                 if tick.get("instrument_token") == instrument_token:
                     # Update the existing tick's last price
                     tick["last_price"] = incoming_tick.get("last_price")
@@ -36,10 +36,11 @@ class Wsocket:
 
             if not found:
                 # If no existing tick is found, add the new tick
-                self.ticks.append(incoming_tick)
+                self._ltp.append(incoming_tick)
 
     def __init__(self):
         self.ticks = []
+        self._ltp = []
         # Subscribe to a list of instrument_tokens (Index first).
         nse_symbols = D_SYMBOL["NSE"]
         self.tokens = [v for k, v in nse_symbols.items() if k == "instrument_token"]
@@ -66,14 +67,15 @@ class Wsocket:
             tokens = [dct["instrument_token"] for dct in tokens]
             self.tokens = list(set(self.tokens + tokens))
             # self.tokens = tokens
-        return self.ticks
+        self.update_ticks(self.ticks)
+        return self._ltp
 
     def on_ticks(self, ws, ticks):
         # print(ticks)
         if self.tokens:
             ws.subscribe(self.tokens)
             # self.tokens = False
-        self.update_ticks(ticks)
+        self.ticks = ticks
 
     def on_connect(self, ws, response):
         if response:
