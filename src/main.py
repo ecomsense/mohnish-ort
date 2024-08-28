@@ -145,11 +145,8 @@ class TradingStrategy:
 
     def is_price_above(self, option):
         if option.buy_params["last_price"] > option.buy_params["trigger_price"]:
-            logging.debug(f"price above buy order {option.buy_params['trigger_price']}")
+            logging.info(f"price above buy order {option.buy_params['trigger_price']}")
             return True
-        logging.debug(
-            f"buy to cover or buy trade not triggered for {option.buy_params['trigger_price']}"
-        )
         return False
 
     def run(self):
@@ -166,7 +163,7 @@ class TradingStrategy:
                         opt.short_params["last_price"] = self.ltp_from_ws_response(
                             [opt.instrument_token, opt.tradingsymbol]
                         )
-                    print({opt.tradingsymbol: opt.status})
+                    logging.info({opt.tradingsymbol: opt.status})
                     if opt.status == -1:
                         subset = {"order_id": opt.buy_id, "status": "COMPLETE"}
                         if self.is_order_complete(subset):
