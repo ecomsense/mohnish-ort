@@ -174,13 +174,17 @@ class Paper(Bypass):
     def positions(self):
         try:
             lst = []
-            df = pd.read_csv(S_DATA + "orders.csv")
-            if not df.empty:
-                df = self._ord_to_pos(df)
-                print(df)
-                lst = df.to_dict(orient="records")
+            F_ORDERS = S_DATA + "orders.csv"
+            if __import__("os").path.getsize(F_ORDERS) > 2:
+                print(__import__("os").path.getsize(F_ORDERS))
+                df = pd.read_csv(F_ORDERS)
+                if not df.empty:
+                    logging.info("df not empty")
+                    df = self._ord_to_pos(df)
+                    print(df)
+                    lst = df.to_dict(orient="records")
         except Exception as e:
-            logging.debug(f"positions error: {e}")
+            logging.debug(f"paper positions error: {e}")
         finally:
             return lst
 
@@ -189,12 +193,13 @@ if __name__ == "__main__":
     from api import Helper
 
     help = Helper(15)
-    orders = pd.read_csv(S_DATA + "orders.csv").to_dict(orient="records")
-    print(orders)
+    df = pd.read_csv(S_DATA + "orders.csv")
+    if not df.empty:
+        orders = df.to_dict(orient="records")
+        print(orders)
+        filtered_orders = [
+            order for order in orders if order["status"] != "TRIGGER PENDING"
+        ]
+        pd.DataFrame(filtered_orders).to_csv(S_DATA + "orders.csv", index=False)
 
-    filtered_orders = [
-        order for order in orders if order["status"] != "TRIGGER PENDING"
-    ]
-
-    pd.DataFrame(filtered_orders).to_csv(S_DATA + "orders.csv", index=False)
     print(help.api().positions)
