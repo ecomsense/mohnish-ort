@@ -87,14 +87,17 @@ class Wsocket:
     def on_close(self, ws, code, reason):
         # On connection close stop the main loop
         # Reconnection will not happen after executing `ws.stop()`
-        ws.stop()
+        # ws.stop()
+
+        logging.error(
+            "Wsocket close: {code} - {reason}".format(code=code, reason=reason)
+        )
 
     def on_error(self, ws, code, reason):
         # Callback when connection closed with error.
         logging.error(
             "Connection error: {code} - {reason}".format(code=code, reason=reason)
         )
-        ws.reconnect()
 
     def on_reconnect(self, ws, attempts_count):
         # Callback when reconnect is on progress
