@@ -163,7 +163,6 @@ class TradingStrategy:
                         opt.short_params["last_price"] = self.ltp_from_ws_response(
                             [opt.instrument_token, opt.tradingsymbol]
                         )
-                    logging.info({opt.tradingsymbol: opt.status})
                     if opt.status == -1:
                         subset = {"order_id": opt.buy_id, "status": "COMPLETE"}
                         if self.is_order_complete(subset):
@@ -175,6 +174,7 @@ class TradingStrategy:
                         ## status is a fresh buy
                         if opt.status == 1:
                             self.set_bounds_to_check(opt)
+                            logging.info({opt.tradingsymbol: opt.status})
                         print(vars(opt))
                     elif opt.status == 1:
                         lst = unify_dict(self.sr, self.quotes, "instrument_token")
@@ -201,6 +201,7 @@ class TradingStrategy:
                         # short new position
                         self.short(opt)
                         opt.status = -1
+                        logging.info({opt.tradingsymbol: opt.status})
                 # print(self.help.api().positions)
                 blink()
             else:
@@ -210,7 +211,7 @@ class TradingStrategy:
                         if order["status"] in ["OPEN", "TRIGGER PENDING", None]:
                             self.help.api().order_cancel(order["order_id"])
                     except Exception as e:
-                        print(f"order {order} cancel error: {e}")
+                        logging.error(f"order {order} cancel error: {e}")
                 lst_of_pos = self.help.api().positions
                 for pos in lst_of_pos:
                     if pos["quantity"] != 0:
@@ -230,12 +231,13 @@ class TradingStrategy:
                             tag="exit",
                             last_price=last_price,
                         )
+                        logging.info(args)
                         resp = self.help.api().order_place(**args)
                         logging.info(f"exit: {resp}")
                 # cancel orders
             #
         except Exception as e:
-            print(f"run error: {e}")
+            logging.error(f"run error: {e}")
             print_exc()
 
 
