@@ -209,7 +209,7 @@ class TradingStrategy:
                 for order in lst_of_orders:
                     try:
                         if order["status"] in ["OPEN", "TRIGGER PENDING", None]:
-                            self.help.api().order_cancel(order["order_id"])
+                            self.help.api().order_cancel(**order)
                     except Exception as e:
                         logging.error(f"order {order} cancel error: {e}")
                 lst_of_pos = self.help.api().positions
@@ -232,7 +232,7 @@ class TradingStrategy:
                             last_price=last_price,
                         )
                         logging.info(args)
-                        resp = self.help.api().order_place(**args)
+                        resp = self.help.enter(args)
                         logging.info(f"exit: {resp}")
                 # cancel orders
             #
@@ -251,7 +251,7 @@ def root():
         # Unpack settings into instance attributes
         symbol_settings = dict_from_yml("base", "BANKNIFTY")
         while not is_time_past(entry_time):
-            logging.info(f"z #@! zZZ sleeping till {entry_time}")
+            print(f"z #@! zZZ sleeping till {entry_time}")
             blink()
         TradingStrategy(strategy_settings, symbol_settings).run()
     except Exception as e:
