@@ -1,6 +1,6 @@
 from traceback import print_exc
 
-from toolkit.kokoo import blink, is_time_past
+from toolkit.kokoo import blink, is_time_past, timer
 
 from api import Helper
 from constants import O_SETG, logging
@@ -239,6 +239,11 @@ class TradingStrategy:
         except Exception as e:
             logging.error(f"run error: {e}")
             print_exc()
+            timer(5)
+            print("TRYING TO RECOVER")
+            Helper.api_object = None
+            self.help.api()
+            self.run()
 
 
 def root():
