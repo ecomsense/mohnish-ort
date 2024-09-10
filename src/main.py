@@ -209,7 +209,10 @@ class TradingStrategy:
                 for order in lst_of_orders:
                     try:
                         if order["status"] in ["OPEN", "TRIGGER PENDING", None]:
-                            self.help.api().order_cancel(**order)
+                            params = dict(
+                                order_id=order["order_id"], variety=order["variety"]
+                            )
+                            self.help.api().order_cancel(**params)
                     except Exception as e:
                         logging.error(f"order {order} cancel error: {e}")
                 lst_of_pos = self.help.api().positions
