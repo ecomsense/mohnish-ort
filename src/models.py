@@ -32,7 +32,7 @@ class Order:
 
     def to_dict(self):
         return {
-            "exchange": "NFO",
+            "exchange": "BFO",
             "quantity": self.quantity,
             "order_type": "MARKET",
             "product": "MIS",

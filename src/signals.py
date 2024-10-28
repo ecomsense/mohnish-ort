@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from constants import O_FUTL, S_DATA, logging
+from constants import O_FUTL, S_DATA
 from symbols import Symbols
 
 F_SIGNAL = S_DATA + "signals.csv"
@@ -34,7 +34,7 @@ def read_supp_and_res():
     """
     pprint(srs)
     if any(srs):
-        kwargs = {"exchange": "NSE"}
+        kwargs = {"exchange": "BSE"}
         nse_symbols = Symbols(**kwargs)
         for sr in srs:
             sr["instrument_token"] = nse_symbols.tokens_from_symbols(

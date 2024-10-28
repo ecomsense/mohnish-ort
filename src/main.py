@@ -257,7 +257,8 @@ def root():
         entry_time: str = O_SETG["program"]["start"]
         strategy_settings = O_SETG["strategy"]
         # Unpack settings into instance attributes
-        symbol_settings = dict_from_yml("base", "BANKNIFTY")
+        symbol_settings = dict_from_yml("base", strategy_settings["base"])
+        timer(5)
         while not is_time_past(entry_time):
             print(f"z #@! zZZ sleeping till {entry_time}")
             blink()

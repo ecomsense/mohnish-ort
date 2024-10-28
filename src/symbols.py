@@ -59,7 +59,10 @@ class Symbols:
             # create property from dictionary
             for key, value in kwargs.items():
                 setattr(self, key, value)
+                print(key)
+        print(self.exchange)
         self.symbols_from_json = O_FUTL.read_file(S_DATA + self.exchange + ".json")
+        logging.debug("end of debuggging symbol")
 
     def tokens_from_symbols(self, symbols: List[str]) -> List:
         try:
@@ -149,12 +152,14 @@ class Symbols:
         """
         txt = "Build chain" if full_chain else "Straddle"
         atm = self.calc_atm_from_ltp(ltp)
+        print(f"{atm=}")
         lst = []
         lst.append(self.base + self.expiry + str(atm) + "CE")
         lst.append(self.base + self.expiry + str(atm) + "PE")
         if full_chain:
             for v in range(1, self.depth):
                 txt = self.base + self.expiry + str(atm + (v * self.diff)) + "CE"
+                print(txt)
                 lst.append(txt)
                 lst.append(self.base + self.expiry + str(atm + (v * self.diff)) + "PE")
                 lst.append(self.base + self.expiry + str(atm - (v * self.diff)) + "CE")
@@ -218,7 +223,7 @@ class Symbols:
 if __name__ == "__main__":
     from utils import dict_from_yml
 
-    kwargs = dict_from_yml("base", "BANKNIFTY")
+    kwargs = dict_from_yml("base", "SENSEX")
     s = Symbols(**kwargs)
     ce_symbol, pe_symbol = s.get_option_symbols(54170)
     print(ce_symbol, pe_symbol)

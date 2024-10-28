@@ -42,7 +42,8 @@ class Wsocket:
         self.ticks = []
         self._ltp = []
         # Subscribe to a list of instrument_tokens (Index first).
-        nse_symbols = D_SYMBOL["NSE"]
+        nse_symbols = D_SYMBOL["BSE"]
+        print(nse_symbols)
         self.tokens = [v for k, v in nse_symbols.items() if k == "instrument_token"]
         kite = Helper.api().kite
         if O_CNFG["broker"] == "bypass":
