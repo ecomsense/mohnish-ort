@@ -93,7 +93,7 @@ class TradingStrategy:
             params["order_type"] = "SL"
             params["quantity"] = self.quantity * 2
             params["trigger_price"] = params["last_price"] + self.stop_loss
-            params["price"] = params["trigger_price"] + 3
+            params["price"] = params["trigger_price"] + 5
             params["tag"] = "stoploss"
 
             option.buy_id = self.help.enter(params)
