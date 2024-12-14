@@ -1,11 +1,21 @@
 exchanges:
   - NFO
   - NSE
+  - BFO
+  - BSE
 NSE:
-    base: BANKNIFTY
-    diff: 100
-    depth: 20
-    exchange: NFO
-    expiry: "24807"
-    instrument_token: 260105
-    tradingsymbol: NIFTY BANK
+  base: BANKNIFTY
+  diff: 100
+  depth: 20
+  exchange: NFO
+  expiry: "24807"
+  instrument_token: 260105
+  tradingsymbol: NIFTY BANK
+BSE:
+  base: SENSEX
+  diff: 100
+  depth: 20
+  exchange: BFO
+  expiry: "24O31"
+  instrument_token: 265
+  tradingsymbol: SENSEX
