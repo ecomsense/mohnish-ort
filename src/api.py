@@ -164,8 +164,19 @@ if __name__ == "__main__":
     print(ord)
     if any(ord):
         df = pd.DataFrame(ord)
-        df = df[["symbol", "quantity", "side", "average_price", "status"]]
+        df = df[
+            [
+                "symbol",
+                "quantity",
+                "side",
+                "order_timestamp",
+                "order_id",
+                "average_price",
+                "status",
+            ]
+        ]
         print(df)
+        df = df.to_csv(S_DATA + "orders.csv", index=False)
         pos = help.api().positions
         df = pd.DataFrame(pos)
         df = df[["symbol", "quantity", "unrealised", "m2m"]]

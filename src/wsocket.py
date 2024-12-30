@@ -1,3 +1,4 @@
+from types import CodeType
 from typing import Dict, List
 
 from kiteconnect import KiteTicker
@@ -38,13 +39,22 @@ class Wsocket:
                 # If no existing tick is found, add the new tick
                 self._ltp.append(incoming_tick)
 
+    def set_tokens(self):
+        self.tokens = []
+        for k, v in D_SYMBOL.items():
+            if k != "exchanges":
+                self.tokens.append(v["instrument_token"])
+
     def __init__(self):
         self.ticks = []
         self._ltp = []
         # Subscribe to a list of instrument_tokens (Index first).
-        nse_symbols = D_SYMBOL["BSE"]
+        """
+        nse_symbols = D_SYMBOL["NSE"]
         print(nse_symbols)
         self.tokens = [v for k, v in nse_symbols.items() if k == "instrument_token"]
+        """
+        self.set_tokens()
         kite = Helper.api().kite
         if O_CNFG["broker"] == "bypass":
             logging.debug("using BYPASS ticker")
