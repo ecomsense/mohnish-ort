@@ -1,15 +1,16 @@
 log:
-  show: True
+  show: False
   level: 30
 program:
-  start: "9:30"
-  stop: "15:15"
+  start: "0:01"
+  stop: "23:59"
 trade:
   start: "9:30"
   stop: "15:00"
 strategy:
-  base: "BANKNIFTY"
+  type: 1 # both side = 0, call only = 1, put only = -1
+  base: BANKNIFTY
   stop_loss: 60
   target: 100
   quantity: 15
-live: 0
+live: 1
