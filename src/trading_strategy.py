@@ -140,7 +140,7 @@ class TradingStrategy:
         lst_of_bands.append((median - self.stop_loss, median + self.target))
         lst_of_prices.append(median)
         opt.bounds = lst_of_bands, lst_of_prices
-        logging.info("setting bounds", str(lst_of_bands), str(lst_of_prices)
+        logging.info("setting bounds", str(lst_of_bands), str(lst_of_prices))
 
     def is_price_above(self, option):
         if option.buy_params["last_price"] > option.buy_params["price"]:
