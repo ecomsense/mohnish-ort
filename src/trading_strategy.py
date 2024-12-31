@@ -10,7 +10,7 @@ from signals import (
 from symbols import Symbols
 from wsocket import Wsocket
 from utils import retry_until_not_none
-from constants import logging
+from constants import logging, O_SETG
 from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
 
