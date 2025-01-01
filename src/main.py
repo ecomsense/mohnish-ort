@@ -1,11 +1,11 @@
 from traceback import print_exc
 
-from toolkit.kokoo import blink, is_time_past, timer
+from toolkit.kokoo import blink, is_time_past
 
 from constants import O_SETG, logging
 from symbols import dump
 from utils import dict_from_yml
-from trading_strategy import TradingStrategy
+from both import Both
 from oneside import Oneside
 
 
@@ -22,7 +22,7 @@ def root():
             print(f"z #@! zZZ sleeping till {entry_time}")
             blink()
         if strategy_settings["type"] == 0:
-            TradingStrategy(strategy_settings, symbol_settings).run()
+            Both(strategy_settings, symbol_settings).run()
         elif strategy_settings["type"] == -1:
             Oneside(strategy_settings, symbol_settings, "put").run()
         else:

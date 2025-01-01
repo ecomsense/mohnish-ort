@@ -1,10 +1,6 @@
 from api import Helper
 from models import Calls, Puts
-from signals import (
-    check_any_out_of_bounds_np,
-    find_band,
-    unify_dict,
-)
+from signals import check_any_out_of_bounds_np
 from symbols import Symbols
 from wsocket import Wsocket
 from utils import retry_until_not_none
@@ -31,6 +27,7 @@ class Oneside:
             self.quotes = self.ws.ltp()
 
         logging.debug("decipher ltp from websocket response")
+        # TODO merge expiry offset
 
         # build option chain
         bn_ltp = self.ltp_from_ws_response(
@@ -38,17 +35,6 @@ class Oneside:
         )
         tokens = self.symbols.build_chain(bn_ltp, full_chain=True)
         self.quotes = self.ws.ltp(tokens)
-        ce_symbol, pe_symbol = self.symbols.get_option_symbols(bn_ltp)
-        self.ce_or_pe.tradingsymbol = (
-            ce_symbol if isinstance(self.ce_or_pe, Calls) else pe_symbol
-        )
-        self.ce_or_pe.instrument_token = self.symbols.tokens_from_symbols(
-            self.ce_or_pe.tradingsymbol
-        )[0]["instrument_token"]
-        self.line = self.ltp_from_ws_response(
-            [self.ce_or_pe.instrument_token, self.ce_or_pe.tradingsymbol]
-        )
-        self.short()
 
     @retry_until_not_none
     def ltp_from_ws_response(self, lst):
@@ -66,6 +52,16 @@ class Oneside:
 
     def short(self):
         try:
+            bn_ltp = self.ltp_from_ws_response(
+                [self.symbols.instrument_token, self.symbols.tradingsymbol]
+            )
+            ce_symbol, pe_symbol = self.symbols.get_option_symbols(bn_ltp)
+            self.ce_or_pe.tradingsymbol = (
+                ce_symbol if isinstance(self.ce_or_pe, Calls) else pe_symbol
+            )
+            self.ce_or_pe.instrument_token = self.symbols.tokens_from_symbols(
+                self.ce_or_pe.tradingsymbol
+            )[0]["instrument_token"]
             last_price = self.ltp_from_ws_response(
                 [self.ce_or_pe.instrument_token, self.ce_or_pe.tradingsymbol]
             )
@@ -82,7 +78,7 @@ class Oneside:
 
             params["side"] = "BUY"
             params["order_type"] = "SL"
-            params["quantity"] = self.quantity
+            params["quantity"] = self.quantity * 2
             params["trigger_price"] = params["last_price"] + self.stop_loss
             params["price"] = params["trigger_price"] + 5
             params["tag"] = "stoploss"
@@ -118,6 +114,7 @@ class Oneside:
             for dct in self.orders:
                 if is_subset(subset, dct):
                     flag = True
+                    logging.info(f"{subset} found")
                     break
         except Exception as e:
             logging.info(f" is_order_complete error: {e}")
@@ -125,32 +122,16 @@ class Oneside:
             return flag
 
     def set_bounds_to_check(self):
-        # update last price for each dictionary
-        lst = unify_dict(self.sr, self.quotes, "instrument_token")
-        lst_of_bands, lst_of_prices = find_band(lst)
         median = self.ce_or_pe.buy_params["last_price"]
-        lst_of_bands.append((median - self.stop_loss, median + self.target))
-        lst_of_prices.append(median)
-        logging.info("setting bounds", lst_of_bands, lst_of_prices)
+        lst_of_bands = (median - self.stop_loss, median + self.target)
+        lst_of_prices = [median]
         self.ce_or_pe.bounds = lst_of_bands, lst_of_prices
+        logging.info("setting bounds", str(lst_of_bands), str(lst_of_prices))
 
-    def is_price(self, above_or_below="above"):
-        if above_or_below == "above":
-            if (
-                self.ce_or_pe.buy_params["last_price"]
-                > self.ce_or_pe.buy_params["trigger_price"]
-            ):
-                logging.info(
-                    f"price above buy order {self.ce_or_pe.buy_params['trigger_price']}"
-                )
-                return True
-        else:
-            if self.ce_or_pe.short_params["last_price"] < self.line:
-                logging.info(
-                    f"{self.ce_or_pe.short_params['last_price']} is below base price {self.line}"
-                )
-                return True
-
+    def is_price_above(self):
+        if self.ce_or_pe.buy_params["last_price"] > self.ce_or_pe.buy_params["price"]:
+            logging.info(f"price above buy order {self.ce_or_pe.buy_params['price']}")
+            return True
         return False
 
     def run(self):
@@ -158,30 +139,58 @@ class Oneside:
             while not is_time_past(O_SETG["program"]["stop"]):
                 self.orders = self.help.api().orders
                 self.quotes = self.ws.ltp()
-                last_price = self.ltp_from_ws_response(
-                    [self.ce_or_pe.instrument_token, self.ce_or_pe.tradingsymbol]
-                )
-                if last_price:
-                    self.ce_or_pe.buy_params["last_price"] = last_price
-                    self.ce_or_pe.short_params["last_price"] = last_price
+                if getattr(self.ce_or_pe, "buy_params", None):
+                    last_price = self.ltp_from_ws_response(
+                        [self.ce_or_pe.instrument_token, self.ce_or_pe.tradingsymbol]
+                    )
+                    self.ce_or_pe.short_params["last_price"] = self.ce_or_pe.buy_params[
+                        "last_price"
+                    ] = last_price
+
                 if self.ce_or_pe.status == -1:
                     subset = {"order_id": self.ce_or_pe.buy_id, "status": "COMPLETE"}
                     if self.is_order_complete(subset):
-                        self.ce_or_pe.status = 0
-                    elif self.is_price("above"):
+                        self.ce_or_pe.status = 1
+                    elif self.is_price_above():
                         self.ce_or_pe.buy_params["order_id"] = self.ce_or_pe.buy_id
                         self.help.cover_and_buy(self.ce_or_pe.buy_params)
-                        self.ce_or_pe.status = 0
+                        self.ce_or_pe.status = 1
                     ## status is a fresh buy
-                elif self.ce_or_pe.status == 0 and self.is_price("below"):
-                    logging.info({self.ce_or_pe.tradingsymbol: self.ce_or_pe.status})
+                    if self.ce_or_pe.status == 1:
+                        self.set_bounds_to_check()
+                        logging.info(
+                            {self.ce_or_pe.tradingsymbol: self.ce_or_pe.status}
+                        )
+                    print(vars(self.ce_or_pe))
+                elif self.ce_or_pe.status == 1:
+                    """
+                    lst = unify_dict(self.sr, self.quotes, "instrument_token")
+                    lst_of_prices = [d["last_price"] for d in lst]
+                    """
+                    last_price_of_option = self.ltp_from_ws_response(
+                        [self.ce_or_pe.instrument_token, self.ce_or_pe.tradingsymbol]
+                    )
+                    self.ce_or_pe.bounds = self.ce_or_pe.bounds[0], last_price_of_option
+                    print(self.ce_or_pe.bounds)
+                    if check_any_out_of_bounds_np(self.ce_or_pe.bounds):
+                        logging.info("out of bounds, exiting buy trade")
+                        # sell existing position
+                        kwargs = self.ce_or_pe.buy_params.copy()
+                        kwargs["quantity"] = self.quantity
+                        kwargs["side"] = "SELL"
+                        kwargs["order_type"] = "MARKET"
+                        kwargs["price"] = 0.0
+                        kwargs["tag"] = "exit"
+                        kwargs.pop("order_id", None)
+                        self.help.enter(kwargs)
+                        self.ce_or_pe.status = 0
+                elif self.ce_or_pe.status == 0:
                     # short new position
                     self.short()
                     self.ce_or_pe.status = -1
                     logging.info({self.ce_or_pe.tradingsymbol: self.ce_or_pe.status})
                 # print(self.help.api().positions)
                 blink()
-                print(vars(self.ce_or_pe))
             else:
                 lst_of_orders = self.help.api().orders
                 for order in lst_of_orders:
@@ -198,9 +207,9 @@ class Oneside:
                     if pos["quantity"] != 0:
                         side = "SELL" if pos["quantity"] > 0 else "BUY"
                         instrument_token = (
-                            self.ce_or_pe.instrument_token
-                            if self.ce_or_pe.tradingsymbol == pos["symbol"]
-                            else self.ce_or_pe.instrument_token
+                            self.ce.instrument_token
+                            if self.ce.tradingsymbol == pos["symbol"]
+                            else self.pe.instrument_token
                         )
                         last_price = self.ltp_from_ws_response(
                             [instrument_token, pos["symbol"]]
@@ -216,6 +225,7 @@ class Oneside:
                         resp = self.help.enter(args)
                         logging.info(f"exit: {resp}")
                 # cancel orders
+            #
         except Exception as e:
             logging.error(f"run error: {e}")
             print_exc()

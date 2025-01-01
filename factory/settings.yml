@@ -7,10 +7,12 @@ program:
 trade:
   start: "9:30"
   stop: "15:00"
+signals:
+  exchange: NSE # NSE or BSE
 strategy:
   type: 1 # both side = 0, call only = 1, put only = -1
   base: BANKNIFTY
-  stop_loss: 60
+  stop_loss: 10
   target: 100
   quantity: 15
-live: 1
+live: 0

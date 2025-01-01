@@ -15,7 +15,7 @@ from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
 
 
-class TradingStrategy:
+class Both:
     def __init__(self, settings, symbol_settings):
         self.symbols = Symbols(**symbol_settings)
         self.quantity = settings["quantity"]

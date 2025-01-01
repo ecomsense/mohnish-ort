@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from constants import O_FUTL, S_DATA
+from constants import O_FUTL, S_DATA, O_SETG
 from symbols import Symbols
 
 F_SIGNAL = S_DATA + "signals.csv"
@@ -34,9 +34,10 @@ def read_supp_and_res():
     """
     pprint(srs)
     if any(srs):
-        kwargs = {"exchange": "BSE"}
+        kwargs = O_SETG["signals"]
         nse_symbols = Symbols(**kwargs)
         for sr in srs:
+            print(sr)
             sr["instrument_token"] = nse_symbols.tokens_from_symbols(
                 sr["tradingsymbol"]
             )[0]["instrument_token"]
@@ -154,8 +155,9 @@ if __name__ == "__main__":
 
     lst_of_bands.append((0, 1))
     lst_of_prices.append(3)
-    print(lst_of_bands, lst_of_prices)
+    print(f"{lst_of_bands=}{lst_of_prices=}")
     lists_to_check = lst_of_bands, lst_of_prices
+    print(f"{lists_to_check=}")
     print(check_any_out_of_bounds_np(lists_to_check))
-if __name__ == "__main__":
-    print(read_supp_and_res())
+
+    # print(read_supp_and_res())
