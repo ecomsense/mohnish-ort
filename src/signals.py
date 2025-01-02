@@ -160,4 +160,14 @@ if __name__ == "__main__":
     print(f"{lists_to_check=}")
     print(check_any_out_of_bounds_np(lists_to_check))
 
-    # print(read_supp_and_res())
+    def test_check_any_out_of_bounds_np():
+        list_to_check = [(1, 3)], [2]
+        resp = check_any_out_of_bounds_np(list_to_check)
+
+    test_check_any_out_of_bounds_np()
+
+    list_to_check = [(1, 3)], [2]
+    first, second = list_to_check
+    list_to_check = first, [2.5]
+    print(list_to_check)
+    print(f"{(1,3)}")

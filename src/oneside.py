@@ -124,9 +124,8 @@ class Oneside:
     def set_bounds_to_check(self):
         median = self.ce_or_pe.buy_params["last_price"]
         lst_of_bands = (median - self.stop_loss, median + self.target)
-        lst_of_prices = [median]
-        self.ce_or_pe.bounds = lst_of_bands, lst_of_prices
-        logging.info("setting bounds", str(lst_of_bands), str(lst_of_prices))
+        self.ce_or_pe.bounds = [lst_of_bands], [median]
+        logging.info(f"setting bounds {str(lst_of_bands)} {median=}")
 
     def is_price_above(self):
         if self.ce_or_pe.buy_params["last_price"] > self.ce_or_pe.buy_params["price"]:
@@ -170,7 +169,8 @@ class Oneside:
                     last_price_of_option = self.ltp_from_ws_response(
                         [self.ce_or_pe.instrument_token, self.ce_or_pe.tradingsymbol]
                     )
-                    self.ce_or_pe.bounds = self.ce_or_pe.bounds[0], last_price_of_option
+                    first, _ = self.ce_or_pe.bounds
+                    self.ce_or_pe.bounds = first, [last_price_of_option]
                     print(self.ce_or_pe.bounds)
                     if check_any_out_of_bounds_np(self.ce_or_pe.bounds):
                         logging.info("out of bounds, exiting buy trade")
