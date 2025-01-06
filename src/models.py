@@ -1,3 +1,18 @@
+from os import read
+from constants import O_SETG
+from utils import dict_from_yml
+
+
+def read_exchange_from_symbol_yml():
+    try:
+        strategy_settings = O_SETG["strategy"]
+        # Unpack settings into instance attributes
+        symbol_settings = dict_from_yml("base", strategy_settings["base"])
+        return symbol_settings["exchange"]
+    except Exception as e:
+        print(f"{e} while read_exchange_from_symbol_yml")
+
+
 class Options:
     def __init__(self):
         self.status = 0
@@ -32,7 +47,7 @@ class Order:
 
     def to_dict(self):
         return {
-            "exchange": "BFO",
+            "exchange": read_exchange_from_symbol_yml(),
             "quantity": self.quantity,
             "order_type": "MARKET",
             "product": "MIS",
@@ -42,20 +57,5 @@ class Order:
 
 
 if __name__ == "__main__":
-    from pprint import pprint
-
-    c = Calls()
-    print("call status", c.status)
-
-    Order.set_quantity(500)
-    o = Order().to_dict()
-    print("before update")
-    pprint(o)
-    new_dict = {
-        "order_type": "LIMIT",
-        "some_key": "some_value",
-    }
-    print("after updating new dict")
-    pprint(new_dict)
-    o.update(new_dict)
-    pprint(o)
+    resp = read_exchange_from_symbol_yml()
+    print(resp)

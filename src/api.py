@@ -121,7 +121,7 @@ class Helper:
         try:
             params = Order().to_dict()
             params.update(kwargs)
-            print("enter", kwargs)
+            print(params)
             return self.api().order_place(**params)
         except Exception as e:
             logging.error(f"enter: {e}")
