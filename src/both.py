@@ -83,7 +83,7 @@ class Both:
                 "last_price": last_price,
             }
             option.short_id = self.help.enter(params)
-            if traded_price:=help.find_fillprice_from_order_id(option.short_id):
+            if traded_price:=self.help.find_fillprice_from_order_id(option.short_id):
                params["last_price"] =  traded_price
             option.short_params = params
             logging.info(f"short_id: {option.short_id}")
