@@ -127,6 +127,19 @@ class Helper:
             logging.error(f"enter: {e}")
             print_exc()
 
+    def find_fillprice_from_order_id(self, order_id):
+        try:
+            lst_of_trades = self.api().trades
+            lst_of_average_prices = [
+                trade["average_price"]
+                for trade in lst_of_trades
+                if trade["order_id"] == order_id
+            ]
+            return sum(lst_of_average_prices) / len(lst_of_average_prices)
+        except Exception as e:
+            print_exc()
+            logging.error(f"{e} while find fill price from trade id")
+
 
 if __name__ == "__main__":
     import pandas as pd
