@@ -83,8 +83,6 @@ class Both:
                 "last_price": last_price,
             }
             option.short_id = self.help.enter(params)
-            if traded_price:=self.help.find_fillprice_from_order_id(option.short_id):
-               params["last_price"] =  traded_price
             option.short_params = params
             logging.info(f"short_id: {option.short_id}")
             logging.debug(f"short params: {option.short_params}")
@@ -93,13 +91,13 @@ class Both:
             params["order_type"] = "SL"
             params["quantity"] = self.quantity * 2
             params["trigger_price"] = params["last_price"] + self.stop_loss
-            params["price"] = params["trigger_price"] + 5
+            params["price"] = params["trigger_price"] + 2
             params["tag"] = "stoploss"
 
             option.buy_id = self.help.enter(params)
-            option.buy_params = params
             logging.info(f"buy_id: {option.buy_id}")
             logging.debug(f"buy params: {option.buy_params}")
+            option.buy_params = params
         except Exception as e:
             logging.error(f"short error: {e}")
             print_exc()
@@ -138,7 +136,9 @@ class Both:
         # update last price for each dictionary
         lst = unify_dict(self.sr, self.quotes, "instrument_token")
         lst_of_bands, lst_of_prices = find_band(lst)
-        median = opt.buy_params["last_price"]
+        #TODO change param last price to price
+        median = opt.buy_params["price"]
+        logging.info(f"price for target and stop calculation is {median}")
         lst_of_bands.append((median - self.stop_loss, median + self.target))
         lst_of_prices.append(median)
         opt.bounds = lst_of_bands, lst_of_prices
@@ -157,25 +157,29 @@ class Both:
                 self.quotes = self.ws.ltp()
                 lst = [self.ce, self.pe]
                 for opt in lst:
+                    """
                     if getattr(opt, "buy_params", None):
-                        opt.buy_params["last_price"] = self.ltp_from_ws_response(
+                        last_price = self.ltp_from_ws_response(
                             [opt.instrument_token, opt.tradingsymbol]
                         )
-                        opt.short_params["last_price"] = self.ltp_from_ws_response(
-                            [opt.instrument_token, opt.tradingsymbol]
-                        )
+                        opt.buy_params["last_price"] = last_price
+                        opt.short_params["last_price"] = last_price
+                    """"
                     if opt.status == -1:
                         subset = {"order_id": opt.buy_id, "status": "COMPLETE"}
+                        # is stop loss hit
                         if self.is_order_complete(subset):
                             opt.status = 1
+                        """
                         elif self.is_price_above(opt):
                             opt.buy_params["order_id"] = opt.buy_id
                             self.help.cover_and_buy(opt.buy_params)
                             opt.status = 1
+                        """
                         ## status is a fresh buy
                         if opt.status == 1:
                             self.set_bounds_to_check(opt)
-                            logging.info({opt.tradingsymbol: opt.status})
+                            logging.info(f"{opt.tradingsymbol} hit stop loss")
                         print(vars(opt))
                     elif opt.status == 1:
                         lst = unify_dict(self.sr, self.quotes, "instrument_token")
@@ -188,7 +192,7 @@ class Both:
                         print(opt.bounds)
                         if check_any_out_of_bounds_np(opt.bounds):
                             logging.info("out of bounds, exiting buy trade")
-                            # sell existing position
+                            """
                             kwargs = opt.buy_params.copy()
                             kwargs["quantity"] = self.quantity
                             kwargs["side"] = "SELL"
@@ -196,13 +200,18 @@ class Both:
                             kwargs["price"] = 0.0
                             kwargs["tag"] = "exit"
                             kwargs.pop("order_id", None)
+                            """
+                            # sell existing position
+                            params = opt.short_params
+                            params["last_price"] = last_price_of_option
                             self.help.enter(kwargs)
                             opt.status = 0
-                    elif opt.status == 0:
+                            
+                    if opt.status == 0:
                         # short new position
                         self.short(opt)
                         opt.status = -1
-                        logging.info({opt.tradingsymbol: opt.status})
+                        logging.info(f"new short for {opt.tradingsymbol}")
                 # print(self.help.api().positions)
                 blink()
             else:

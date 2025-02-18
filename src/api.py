@@ -102,6 +102,7 @@ class Helper:
             modify response
         """
         try:
+            logging.warning("MODIFYING stop order that is not complete")
             kwargs["order_type"] = "MARKET"
             kwargs["price"] = 0.0
             return self.api().order_modify(kwargs)
