@@ -212,6 +212,12 @@ class Both:
                         self.short(opt)
                         opt.status = -1
                         logging.info(f"new short for {opt.tradingsymbol}")
+                    # added for price not updating
+                    last_price = self.ltp_from_ws_response(
+                        [opt.instrument_token, opt.tradingsymbol]
+                    )
+                    opt.buy_params["last_price"] = last_price
+                    opt.short_params["last_price"] = last_price
                 # print(self.help.api().positions)
                 blink()
             else:
