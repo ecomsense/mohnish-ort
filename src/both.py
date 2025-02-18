@@ -164,7 +164,7 @@ class Both:
                         )
                         opt.buy_params["last_price"] = last_price
                         opt.short_params["last_price"] = last_price
-                    """"
+                    """
                     if opt.status == -1:
                         subset = {"order_id": opt.buy_id, "status": "COMPLETE"}
                         # is stop loss hit
