@@ -13,6 +13,7 @@ from utils import retry_until_not_none
 from constants import logging, O_SETG
 from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
+from copy import deepcopy
 
 
 class Both:
@@ -83,7 +84,7 @@ class Both:
                 "last_price": last_price,
             }
             option.short_id = self.help.enter(params)
-            option.short_params = params
+            option.short_params = deepcopy(params)
             logging.info(f"short_id: {option.short_id}")
             logging.debug(f"short params: {option.short_params}")
             
@@ -204,7 +205,7 @@ class Both:
                             # sell existing position
                             params = opt.short_params
                             params["last_price"] = last_price_of_option
-                            self.help.enter(kwargs)
+                            self.help.enter(params)
                             opt.status = 0
                             
                     if opt.status == 0:
