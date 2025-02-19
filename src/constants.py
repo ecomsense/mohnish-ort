@@ -8,18 +8,6 @@ description:
 from os import path
 from pprint import pprint
 from traceback import print_exc
-
-"""
-    description:
-        import our  custom logger from toolkit
-"""
-try:
-    from toolkit.logger import Logger
-except ModuleNotFoundError:
-    __import__("os").system("pip install git+https://github.com/pannet1/toolkit")
-    __import__("time").sleep(5)
-    from toolkit.logger import Logger
-
 from toolkit.fileutils import Fileutils
 
 O_FUTL = Fileutils()
@@ -35,6 +23,8 @@ if not O_FUTL.is_file_exists(S_LOG):
     """
     print("creating data dir")
     O_FUTL.add_path(S_LOG)
+elif O_FUTL.is_file_not_2day(S_LOG):
+    O_FUTL.nuke_file(S_LOG)
 
 
 def yml_to_obj(arg=None):

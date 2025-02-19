@@ -87,7 +87,7 @@ class Both:
             option.short_params = deepcopy(params)
             logging.info(f"short_id: {option.short_id}")
             logging.debug(f"short params: {option.short_params}")
-            
+
             params["side"] = "BUY"
             params["order_type"] = "SL"
             params["quantity"] = self.quantity * 2
@@ -137,7 +137,7 @@ class Both:
         # update last price for each dictionary
         lst = unify_dict(self.sr, self.quotes, "instrument_token")
         lst_of_bands, lst_of_prices = find_band(lst)
-        #TODO change param last price to price
+        # TODO change param last price to price
         median = opt.buy_params["price"]
         logging.info(f"price for target and stop calculation is {median}")
         lst_of_bands.append((median - self.stop_loss, median + self.target))
@@ -207,7 +207,7 @@ class Both:
                             params["last_price"] = last_price_of_option
                             self.help.enter(params)
                             opt.status = 0
-                            
+
                     if opt.status == 0:
                         # short new position
                         self.short(opt)
