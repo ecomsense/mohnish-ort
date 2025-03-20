@@ -1,18 +1,19 @@
 log:
-  show: False
+  show: True
   level: 30
 program:
-  start: "0:01"
-  stop: "23:59"
+  start: "9:30"
+  stop: "15:00"
 trade:
   start: "9:30"
   stop: "15:00"
 signals:
-  exchange: NSE # NSE or BSE
+  exchange: BSE   # excel contain SR from this file
 strategy:
-  type: 1 # both side = 0, call only = 1, put only = -1
-  base: BANKNIFTY
-  stop_loss: 10
+  type: 0     # both side = 0, call only = 1, put only = -1
+  base: SENSEX
+  stop_loss: 60
   target: 100
-  quantity: 15
-live: 0
+  quantity: 20
+  slippage: 0.5   # 2 for SENSEX and 0.5 for others
+live: 1

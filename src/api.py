@@ -187,6 +187,7 @@ if __name__ == "__main__":
                 "order_id",
                 "average_price",
                 "status",
+                "tag",
             ]
         ]
         print(df)

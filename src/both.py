@@ -23,6 +23,7 @@ class Both:
         self.stop_loss = settings["stop_loss"]
         self.target = settings["target"]
         self.expiry_offset = settings.get("expiry_offset", 1)
+        self.slippage = settings.get("slippage", 0.5)
         # self.expiry = self.symbols.get_expiry(expiry_offset=self.expiry_offset)
         self.help = Helper(settings["quantity"])
         self.ce = Calls()
@@ -92,7 +93,7 @@ class Both:
             params["order_type"] = "SL"
             params["quantity"] = self.quantity * 2
             params["trigger_price"] = params["last_price"] + self.stop_loss
-            params["price"] = params["trigger_price"] + 2
+            params["price"] = params["trigger_price"] + self.slippage
             params["tag"] = "stoploss"
 
             option.buy_id = self.help.enter(params)
