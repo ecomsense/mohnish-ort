@@ -50,7 +50,7 @@ class Order:
             "exchange": read_exchange_from_symbol_yml(),
             "quantity": self.quantity,
             "order_type": "MARKET",
-            "product": "MIS",
+            "product": "NRML",
             "validity": "DAY",
             "tag": "enter",
         }
