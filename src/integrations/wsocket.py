@@ -1,27 +1,21 @@
 from types import CodeType
 from typing import Dict, List
-
 from kiteconnect import KiteTicker
-
-from api import Helper
-from constants import D_SYMBOL, O_CNFG, logging
-
-
-def filter_ws_keys(incoming: List[Dict]):
-    keys = ["instrument_token", "last_price"]
-    new_lst = []
-    if incoming and isinstance(incoming, list) and any(incoming):
-        for dct in incoming:
-            new_dct = {}
-            for key in keys:
-                if dct.get(key, None):
-                    new_dct[key] = dct[key]
-                    new_lst.append(new_dct)
-    return new_lst
-
 
 class Wsocket:
     def update_ticks(self, incoming_ticks):
+        def filter_ws_keys(incoming: List[Dict]):
+            keys = ["instrument_token", "last_price"]
+            new_lst = []
+            if incoming and isinstance(incoming, list) and any(incoming):
+                for dct in incoming:
+                    new_dct = {}
+                    for key in keys:
+                        if dct.get(key, None):
+                            new_dct[key] = dct[key]
+                            new_lst.append(new_dct)
+            return new_lst
+
         incoming_ticks = filter_ws_keys(incoming_ticks)
 
         for incoming_tick in incoming_ticks:
@@ -39,28 +33,23 @@ class Wsocket:
                 # If no existing tick is found, add the new tick
                 self._ltp.append(incoming_tick)
 
-    def set_tokens(self):
+    def set_tokens(self, d_symbol):
         self.tokens = []
-        for k, v in D_SYMBOL.items():
+        for k, v in d_symbol.items():
             if k != "exchanges":
                 self.tokens.append(v["instrument_token"])
 
-    def __init__(self):
+    def __init__(self, config, d_symbol, logging, helper):
         self.ticks = []
         self._ltp = []
-        # Subscribe to a list of instrument_tokens (Index first).
-        """
-        nse_symbols = D_SYMBOL["NSE"]
-        print(nse_symbols)
-        self.tokens = [v for k, v in nse_symbols.items() if k == "instrument_token"]
-        """
-        self.set_tokens()
-        kite = Helper.api().kite
-        if O_CNFG["broker"] == "bypass":
-            logging.debug("using BYPASS ticker")
+        self.logging = logging
+        self.set_tokens(d_symbol)
+        kite = helper.api(config).kite
+        if config.broker == "bypass":
+            self.logging.debug("using BYPASS ticker")
             self.kws = kite.kws()
         else:
-            logging.debug("using official ticker")
+            self.logging.debug("using official ticker")
             self.kws = KiteTicker(kite.api_key, kite.access_token)
         self.kws.on_ticks = self.on_ticks
         self.kws.on_connect = self.on_connect
@@ -100,28 +89,34 @@ class Wsocket:
         # Reconnection will not happen after executing `ws.stop()`
         # ws.stop()
 
-        logging.error(
+        self.logging.error(
             "Wsocket close: {code} - {reason}".format(code=code, reason=reason)
         )
 
     def on_error(self, ws, code, reason):
         # Callback when connection closed with error.
-        logging.error(
+        self.logging.error(
             "Connection error: {code} - {reason}".format(code=code, reason=reason)
         )
 
     def on_reconnect(self, ws, attempts_count):
         # Callback when reconnect is on progress
-        logging.warning("Reconnecting: {}".format(attempts_count))
+        self.logging.warning("Reconnecting: {}".format(attempts_count))
 
     # Callback when all reconnect failed (exhausted max retries)
 
     def on_noreconnect(self, ws):
-        logging.error("Reconnect failed.")
+        self.logging.error("Reconnect failed.")
 
 
 if __name__ == "__main__":
-    ws = Wsocket()
+    from core.config import get_config, set_logger, load_symbols
+    from integrations.api import Helper
+    config = get_config()
+    logging = set_logger(config.log)
+    d_symbol = load_symbols()
+    helper = Helper(1, config, logging)
+    ws = Wsocket(config, d_symbol, logging, helper)
     resp = False
     while not resp:
         resp = ws.ltp()

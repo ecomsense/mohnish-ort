@@ -1,0 +1,24 @@
+[project]
+name = "mohnish-ort"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "kiteext",
+    "pandas>=2.3.3",
+    "pendulum>=3.2.0",
+    "pydantic>=2.0",
+    "pyopenssl==24.1.0",
+    "pyotp>=2.9.0",
+    "pyyaml>=6.0.3",
+    "setuptools==58.2.0",
+    "stock-brokers",
+    "toolkit",
+    "wheel>=0.47.0",
+]
+
+[tool.uv.sources]
+stock-brokers = { git = "https://github.com/ecomsense/stock-brokers" }
+kiteext = { git = "https://github.com/pannet1/kiteext" }
+toolkit = { git = "https://github.com/pannet1/toolkit" }

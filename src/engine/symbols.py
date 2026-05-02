@@ -4,7 +4,10 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
-from constants import O_FUTL, S_DATA, logging
+from toolkit.fileutils import Fileutils
+
+O_FUTL = Fileutils()
+S_DATA = "../data/"
 
 
 def get_symbols(exchange: str) -> Dict[str, Dict[str, Any]]:
@@ -52,8 +55,9 @@ def dump():
 
 
 class Symbols:
-    def __init__(self, **kwargs):
-        logging.debug("initializing symbols")
+    def __init__(self, logging, **kwargs):
+        self.logging = logging
+        self.logging.debug("initializing symbols")
         pprint(kwargs)
         if any(kwargs):
             # create property from dictionary
@@ -62,7 +66,7 @@ class Symbols:
                 print(key)
         print(self.exchange)
         self.symbols_from_json = O_FUTL.read_file(S_DATA + self.exchange + ".json")
-        logging.debug("end of debuggging symbol")
+        self.logging.debug("end of debuggging symbol")
 
     def tokens_from_symbols(self, symbols: List[str]) -> List:
         try:
@@ -216,14 +220,17 @@ class Symbols:
         ce_symbol = symbols.get("CE")
         pe_symbol = symbols.get("PE")
 
-        logging.debug(f"CE symbol: {ce_symbol}, PE symbol: {pe_symbol}")
+        self.logging.debug(f"CE symbol: {ce_symbol}, PE symbol: {pe_symbol}")
         return ce_symbol, pe_symbol
 
 
 if __name__ == "__main__":
-    from utils import dict_from_yml
+    from core.utils import dict_from_yml
+    from core.config import get_config, set_logger
 
+    config = get_config()
+    logging = set_logger(config.log)
     kwargs = dict_from_yml("base", "SENSEX")
-    s = Symbols(**kwargs)
+    s = Symbols(logging, **kwargs)
     ce_symbol, pe_symbol = s.get_option_symbols(54170)
     print(ce_symbol, pe_symbol)

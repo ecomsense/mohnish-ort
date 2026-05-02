@@ -1,35 +1,34 @@
-from api import Helper
-from models import Calls, Puts
-from signals import check_any_out_of_bounds_np
-from symbols import Symbols
-from wsocket import Wsocket
-from utils import retry_until_not_none
-from constants import logging, O_SETG
+from integrations.api import Helper
+from core.models import Calls, Puts
+from engine.signals import check_any_out_of_bounds_np
+from engine.symbols import Symbols
+from integrations.wsocket import Wsocket
+from core.utils import retry_until_not_none
 from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
-
+from core.config import load_symbols
 
 class Oneside:
-    def __init__(self, settings, symbol_settings, ce_or_pe="call"):
-        self.symbols = Symbols(**symbol_settings)
-        self.quantity = settings["quantity"]
-        self.stop_loss = settings["stop_loss"]
-        self.target = settings["target"]
-        self.expiry_offset = settings.get("expiry_offset", 1)
-        # self.expiry = self.symbols.get_expiry(expiry_offset=self.expiry_offset)
-        self.help = Helper(settings["quantity"])
+    def __init__(self, config, symbol_settings, logging, ce_or_pe="call"):
+        self.config = config
+        self.logging = logging
+        strategy_settings = config.strategy
+        self.symbols = Symbols(logging, **symbol_settings)
+        self.quantity = strategy_settings["quantity"]
+        self.stop_loss = strategy_settings["stop_loss"]
+        self.target = strategy_settings["target"]
+        self.expiry_offset = strategy_settings.get("expiry_offset", 1)
+        self.help = Helper(self.quantity, config, logging)
         self.ce_or_pe = Calls() if ce_or_pe == "call" else Puts()
 
-        logging.debug("subscribing index from symbols yml automtically")
-        self.ws: object = Wsocket()
+        self.logging.debug("subscribing index from symbols yml automtically")
+        d_symbol = load_symbols()
+        self.ws = Wsocket(config, d_symbol, logging, self.help)
         self.quotes = False
         while not self.quotes or not any(self.quotes):
             self.quotes = self.ws.ltp()
 
-        logging.debug("decipher ltp from websocket response")
-        # TODO merge expiry offset
-
-        # build option chain
+        self.logging.debug("decipher ltp from websocket response")
         bn_ltp = self.ltp_from_ws_response(
             [self.symbols.instrument_token, self.symbols.tradingsymbol]
         )
@@ -73,8 +72,8 @@ class Oneside:
             }
             self.ce_or_pe.short_id = self.help.enter(params)
             self.ce_or_pe.short_params = params
-            logging.info(f"short_id: {self.ce_or_pe.short_id}")
-            logging.debug(f"short params: {self.ce_or_pe.short_params}")
+            self.logging.info(f"short_id: {self.ce_or_pe.short_id}")
+            self.logging.debug(f"short params: {self.ce_or_pe.short_params}")
 
             params["side"] = "BUY"
             params["order_type"] = "SL"
@@ -85,10 +84,10 @@ class Oneside:
 
             self.ce_or_pe.buy_id = self.help.enter(params)
             self.ce_or_pe.buy_params = params
-            logging.info(f"buy_id: {self.ce_or_pe.buy_id}")
-            logging.debug(f"buy params: {self.ce_or_pe.buy_params}")
+            self.logging.info(f"buy_id: {self.ce_or_pe.buy_id}")
+            self.logging.debug(f"buy params: {self.ce_or_pe.buy_params}")
         except Exception as e:
-            logging.error(f"short error: {e}")
+            self.logging.error(f"short error: {e}")
             print_exc()
 
     def is_order_complete(self, subset):
@@ -114,10 +113,10 @@ class Oneside:
             for dct in self.orders:
                 if is_subset(subset, dct):
                     flag = True
-                    logging.info(f"{subset} found")
+                    self.logging.info(f"{subset} found")
                     break
         except Exception as e:
-            logging.info(f" is_order_complete error: {e}")
+            self.logging.info(f" is_order_complete error: {e}")
         finally:
             return flag
 
@@ -125,11 +124,11 @@ class Oneside:
         median = self.ce_or_pe.buy_params["last_price"]
         lst_of_bands = (median - self.stop_loss, median + self.target)
         self.ce_or_pe.bounds = [lst_of_bands], [median]
-        logging.info(f"setting bounds {str(lst_of_bands)} {median=}")
+        self.logging.info(f"setting bounds {str(lst_of_bands)} {median=}")
 
     def is_price_above(self):
         if self.ce_or_pe.buy_params["last_price"] > self.ce_or_pe.buy_params["price"]:
-            logging.info(f"price above buy order {self.ce_or_pe.buy_params['price']}")
+            self.logging.info(f"price above buy order {self.ce_or_pe.buy_params['price']}")
             return True
         return False
 
@@ -157,7 +156,7 @@ class Oneside:
                     ## status is a fresh buy
                     if self.ce_or_pe.status == 1:
                         self.set_bounds_to_check()
-                        logging.info(
+                        self.logging.info(
                             {self.ce_or_pe.tradingsymbol: self.ce_or_pe.status}
                         )
                     print(vars(self.ce_or_pe))
@@ -173,7 +172,7 @@ class Oneside:
                     self.ce_or_pe.bounds = first, [last_price_of_option]
                     print(self.ce_or_pe.bounds)
                     if check_any_out_of_bounds_np(self.ce_or_pe.bounds):
-                        logging.info("out of bounds, exiting buy trade")
+                        self.logging.info("out of bounds, exiting buy trade")
                         # sell existing position
                         kwargs = self.ce_or_pe.buy_params.copy()
                         kwargs["quantity"] = self.quantity
@@ -188,7 +187,7 @@ class Oneside:
                     # short new position
                     self.short()
                     self.ce_or_pe.status = -1
-                    logging.info({self.ce_or_pe.tradingsymbol: self.ce_or_pe.status})
+                    self.logging.info({self.ce_or_pe.tradingsymbol: self.ce_or_pe.status})
                 # print(self.help.api().positions)
                 blink()
             else:
@@ -201,7 +200,7 @@ class Oneside:
                             )
                             self.help.api().order_cancel(**params)
                     except Exception as e:
-                        logging.error(f"order {order} cancel error: {e}")
+                        self.logging.error(f"order {order} cancel error: {e}")
                 lst_of_pos = self.help.api().positions
                 for pos in lst_of_pos:
                     if pos["quantity"] != 0:
@@ -221,13 +220,13 @@ class Oneside:
                             tag="exit",
                             last_price=last_price,
                         )
-                        logging.info(args)
+                        self.logging.info(args)
                         resp = self.help.enter(args)
-                        logging.info(f"exit: {resp}")
+                        self.logging.info(f"exit: {resp}")
                 # cancel orders
             #
         except Exception as e:
-            logging.error(f"run error: {e}")
+            self.logging.error(f"run error: {e}")
             print_exc()
             timer(5)
             print("TRYING TO RECOVER")
@@ -238,17 +237,19 @@ class Oneside:
 
 if __name__ == "__main__":
     print("test")
-    from constants import O_SETG, logging
-    from symbols import dump
-    from utils import dict_from_yml
+    from core.config import get_config, set_logger
+    from engine.symbols import dump
+    from core.utils import dict_from_yml
 
     try:
+        config = get_config()
+        logging = set_logger(config.log)
         # download necessary masters
         dump()
-        strategy_settings = O_SETG["strategy"]
+        strategy_settings = config.strategy
         # Unpack settings into instance attributes
         symbol_settings = dict_from_yml("base", strategy_settings["base"])
-        Oneside(strategy_settings, symbol_settings).run()
+        Oneside(config, symbol_settings, logging).run()
     except Exception as e:
         print(e)
         print_exc()

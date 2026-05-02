@@ -4,9 +4,11 @@ import pandas as pd
 import pendulum as plum
 from stock_brokers.bypass.bypass import Bypass
 
-from constants import O_FUTL, S_DATA, logging
-from utils import generate_unique_id
+from toolkit.fileutils import Fileutils
+from core.utils import generate_unique_id
 
+O_FUTL = Fileutils()
+S_DATA = "../data/"
 
 class Paper(Bypass):
     cols = [
@@ -17,6 +19,7 @@ class Paper(Bypass):
         "symbol",
         "remarks",
         "average_price",
+        "status"
     ]
 
     def __init__(
@@ -26,16 +29,24 @@ class Paper(Bypass):
         totp,
         tokpath,
         enctoken,
+        logging=None,
+        data_dir="../data/",
+        slippage_pct=0.0
     ):
         super().__init__(userid, password, totp, tokpath, enctoken)
+        self.logging = logging
+        self.data_dir = data_dir
+        self.slippage_pct = slippage_pct
         self._orders = pd.DataFrame()
-        if O_FUTL.is_file_not_2day(S_DATA + "orders.csv"):
-            O_FUTL.nuke_file(S_DATA + "orders.csv")
+        
+        self.orders_file = self.data_dir + "orders.csv"
+        if O_FUTL.is_file_not_2day(self.orders_file):
+            O_FUTL.nuke_file(self.orders_file)
 
     @property
     def orders(self):
         list_of_orders = self._orders
-        pd.DataFrame(list_of_orders).to_csv(S_DATA + "orders.csv", index=False)
+        pd.DataFrame(list_of_orders).to_csv(self.orders_file, index=False)
         return list_of_orders.to_dict(orient="records")
 
     def order_cancel(self, **args):
@@ -50,16 +61,26 @@ class Paper(Bypass):
             else:
                 order_id = position_dict["order_id"]
 
+            is_market = position_dict["order_type"][0].upper() == "M"
             average_price = (
                 position_dict["last_price"]
-                if position_dict["order_type"][0].upper() == "M"
+                if is_market
                 else position_dict["trigger_price"]
             )
-            status = (
-                "COMPLETE"
-                if position_dict["order_type"][0].upper() == "M"
-                else "TRIGGER PENDING"
-            )
+            
+            # Apply random slippage for market orders to simulate real-world execution
+            if is_market and self.slippage_pct > 0:
+                import random
+                # For BUY, price goes UP. For SELL, price goes DOWN.
+                factor = 1 + (random.uniform(0, self.slippage_pct) / 100)
+                if position_dict["side"] == "BUY":
+                    average_price *= factor
+                else:
+                    average_price /= factor
+                if self.logging:
+                    self.logging.debug(f"Applied {self.slippage_pct}% slippage. New price: {average_price}")
+
+            status = "COMPLETE" if is_market else "TRIGGER PENDING"
             args = dict(
                 order_id=order_id,
                 broker_timestamp=plum.now().format("YYYY-MM-DD HH:mm:ss"),
@@ -77,7 +98,8 @@ class Paper(Bypass):
             self._orders = df
             return order_id
         except Exception as e:
-            logging.error(f"{e} exception while placing order")
+            if self.logging: self.logging.error(
+f"{e} exception while placing order")
             print_exc()
 
     def order_modify(self, args):
@@ -90,7 +112,7 @@ class Paper(Bypass):
             self._orders = self._orders[self._orders["order_id"] != args["order_id"]]
             self.order_place(**args)
         else:
-            logging.info(
+            if self.logging: self.logging.info(
                 "order modify for other order types not implemented for paper trading"
             )
             # TODO FIX THIS
@@ -174,17 +196,18 @@ class Paper(Bypass):
     def positions(self):
         try:
             lst = []
-            F_ORDERS = S_DATA + "orders.csv"
+            F_ORDERS = self.orders_file
             if __import__("os").path.getsize(F_ORDERS) > 2:
                 print(__import__("os").path.getsize(F_ORDERS))
                 df = pd.read_csv(F_ORDERS)
                 if not df.empty:
-                    logging.info("df not empty")
+                    if self.logging: self.logging.info("df not empty")
                     df = self._ord_to_pos(df)
                     print(df)
                     lst = df.to_dict(orient="records")
         except Exception as e:
-            logging.debug(f"paper positions error: {e}")
+            if self.logging: self.logging.debug(
+f"paper positions error: {e}")
         finally:
             return lst
 

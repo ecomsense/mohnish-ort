@@ -1,11 +1,8 @@
-from os import read
-from constants import O_SETG
-from utils import dict_from_yml
+from core.utils import dict_from_yml
 
 
-def read_exchange_from_symbol_yml():
+def read_exchange_from_symbol_yml(strategy_settings):
     try:
-        strategy_settings = O_SETG["strategy"]
         # Unpack settings into instance attributes
         symbol_settings = dict_from_yml("base", strategy_settings["base"])
         return symbol_settings["exchange"]
@@ -45,9 +42,9 @@ class Order:
     def __init__(self):
         self.quantity = Order.quantity  # Access class-level quantity
 
-    def to_dict(self):
+    def to_dict(self, strategy_settings):
         return {
-            "exchange": read_exchange_from_symbol_yml(),
+            "exchange": read_exchange_from_symbol_yml(strategy_settings),
             "quantity": self.quantity,
             "order_type": "MARKET",
             "product": "NRML",
@@ -57,5 +54,5 @@ class Order:
 
 
 if __name__ == "__main__":
-    resp = read_exchange_from_symbol_yml()
+    resp = read_exchange_from_symbol_yml({"base": "SENSEX"})
     print(resp)

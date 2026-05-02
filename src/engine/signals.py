@@ -20,35 +20,30 @@ def _read_xls():
             lambda row: [val for val in row if val is not None], axis=1
         )
         result_df = df[["tradingsymbol", "sr"]]
-        srs = result_df.to_dict(orient="records")
-    return srs
+        from toolkit.fileutils import Fileutils
+        from engine.symbols import Symbols
 
+        O_FUTL = Fileutils()
+        S_DATA = "../data/"
 
-def read_supp_and_res():
-    try: 
-        srs = []
-        if O_FUTL.is_file_exists(F_SIGNAL):
-            srs = _read_xls()
-        """
-        srs = [
-            {"tradingsymbol": "HDFCBANK", "sr": [1600, 1650, 1699, 1725, 1775, 1900]},
-            {"tradingsymbol": "ICICIBANK", "sr": [1000, 1100, 1200, 1300, 1500, 1550]},
-        ]
-        """
-        if any(srs):
-            pprint(srs)
-            kwargs = O_SETG["signals"]
-            nse_symbols = Symbols(**kwargs)
-            for sr in srs:
-                print(sr)
-                sr["instrument_token"] = nse_symbols.tokens_from_symbols(
-                    sr["tradingsymbol"]
-                )[0]["instrument_token"]
-    except Exception as e:
-        logging.warning(f"{e} reading srs")
-    finally:
-        return srs
-    
+        def read_supp_and_res(config, logging):
+            try: 
+                srs = []
+                if O_FUTL.is_file_exists(F_SIGNAL):
+                    srs = _read_xls()
+                if any(srs):
+                    pprint(srs)
+                    kwargs = config.signals
+                    nse_symbols = Symbols(logging, **kwargs)
+                    for sr in srs:
+                        print(sr)
+                        sr["instrument_token"] = nse_symbols.tokens_from_symbols(
+                            sr["tradingsymbol"]
+                        )[0]["instrument_token"]
+            except Exception as e:
+                logging.warning(f"{e} reading srs")
+            finally:
+                return srs
 
 
 def pfx_and_sfx(lst_of_dct: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

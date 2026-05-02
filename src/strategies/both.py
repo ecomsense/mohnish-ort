@@ -1,54 +1,50 @@
-from api import Helper
-from models import Calls, Puts
-from signals import (
+from integrations.api import Helper
+from core.models import Calls, Puts
+from engine.signals import (
     check_any_out_of_bounds_np,
     find_band,
     pfx_and_sfx,
     read_supp_and_res,
     unify_dict,
 )
-from symbols import Symbols
-from wsocket import Wsocket
-from utils import retry_until_not_none
-from constants import logging, O_SETG
+from engine.symbols import Symbols
+from integrations.wsocket import Wsocket
+from core.utils import retry_until_not_none
 from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
 from copy import deepcopy
-
+from core.config import load_symbols
 
 class Both:
-    def __init__(self, settings, symbol_settings):
-        self.symbols = Symbols(**symbol_settings)
-        self.quantity = settings["quantity"]
-        self.stop_loss = settings["stop_loss"]
-        self.target = settings["target"]
-        self.expiry_offset = settings.get("expiry_offset", 1)
-        self.slippage = settings.get("slippage", 0.5)
-        # self.expiry = self.symbols.get_expiry(expiry_offset=self.expiry_offset)
-        self.help = Helper(settings["quantity"])
+    def __init__(self, config, symbol_settings, logging):
+        self.config = config
+        self.logging = logging
+        strategy_settings = config.strategy
+        self.symbols = Symbols(logging, **symbol_settings)
+        self.quantity = strategy_settings["quantity"]
+        self.stop_loss = strategy_settings["stop_loss"]
+        self.target = strategy_settings["target"]
+        self.expiry_offset = strategy_settings.get("expiry_offset", 1)
+        self.slippage = strategy_settings.get("slippage", 0.5)
+        self.help = Helper(self.quantity, config, logging)
         self.ce = Calls()
         self.pe = Puts()
-        support_resistance = read_supp_and_res()
-        # do in place replacement on sr values after adding sfx and pfx
+        support_resistance = read_supp_and_res(config, logging)
         self.sr = pfx_and_sfx(support_resistance)
 
-        logging.debug("subscribing index from symbols yml automtically")
-        self.ws: object = Wsocket()
+        self.logging.debug("subscribing index from symbols yml automtically")
+        d_symbol = load_symbols()
+        self.ws = Wsocket(config, d_symbol, logging, self.help)
         self.quotes = False
         while not self.quotes or not any(self.quotes):
             self.quotes = self.ws.ltp()
 
-        logging.debug("decipher ltp from websocket response")
-        # TODO merge expiry offset
-
-        # build option chain
+        self.logging.debug("decipher ltp from websocket response")
         bn_ltp = self.ltp_from_ws_response(
             [self.symbols.instrument_token, self.symbols.tradingsymbol]
         )
         tokens = self.symbols.build_chain(bn_ltp, full_chain=True)
         self.quotes = self.ws.ltp(tokens)
-
-        # subscribe to support and resistance
         self.quotes = self.ws.ltp(self.sr)
 
     @retry_until_not_none
@@ -86,8 +82,8 @@ class Both:
             }
             option.short_id = self.help.enter(params)
             option.short_params = deepcopy(params)
-            logging.info(f"short_id: {option.short_id}")
-            logging.debug(f"short params: {option.short_params}")
+            self.logging.info(f"short_id: {option.short_id}")
+            self.logging.debug(f"short params: {option.short_params}")
 
             params["side"] = "BUY"
             params["order_type"] = "SL"
@@ -97,11 +93,11 @@ class Both:
             params["tag"] = "stoploss"
 
             option.buy_id = self.help.enter(params)
-            logging.info(f"buy_id: {option.buy_id}")
-            logging.debug(f"buy params: {option.buy_params}")
+            self.logging.info(f"buy_id: {option.buy_id}")
+            self.logging.debug(f"buy params: {option.buy_params}")
             option.buy_params = params
         except Exception as e:
-            logging.error(f"short error: {e}")
+            self.logging.error(f"short error: {e}")
             print_exc()
 
     def is_order_complete(self, subset):
@@ -127,10 +123,10 @@ class Both:
             for dct in self.orders:
                 if is_subset(subset, dct):
                     flag = True
-                    logging.info(f"{subset} found")
+                    self.logging.info(f"{subset} found")
                     break
         except Exception as e:
-            logging.info(f" is_order_complete error: {e}")
+            self.logging.info(f" is_order_complete error: {e}")
         finally:
             return flag
 
@@ -140,15 +136,15 @@ class Both:
         lst_of_bands, lst_of_prices = find_band(lst)
         # TODO change param last price to price
         median = opt.buy_params["price"]
-        logging.info(f"price for target and stop calculation is {median}")
+        self.logging.info(f"price for target and stop calculation is {median}")
         lst_of_bands.append((median - self.stop_loss, median + self.target))
         lst_of_prices.append(median)
         opt.bounds = lst_of_bands, lst_of_prices
-        logging.info("setting bounds", str(lst_of_bands), str(lst_of_prices))
+        self.logging.info("setting bounds", str(lst_of_bands), str(lst_of_prices))
 
     def is_price_above(self, option):
         if option.buy_params["last_price"] > option.buy_params["price"]:
-            logging.info(f"price above buy order {option.buy_params['price']}")
+            self.logging.info(f"price above buy order {option.buy_params['price']}")
             return True
         return False
 
@@ -181,7 +177,7 @@ class Both:
                         ## status is a fresh buy
                         if opt.status == 1:
                             self.set_bounds_to_check(opt)
-                            logging.info(f"{opt.tradingsymbol} hit stop loss")
+                            self.logging.info(f"{opt.tradingsymbol} hit stop loss")
                         print(vars(opt))
                     elif opt.status == 1:
                         lst = unify_dict(self.sr, self.quotes, "instrument_token")
@@ -193,7 +189,7 @@ class Both:
                         opt.bounds = opt.bounds[0], lst_of_prices
                         print(opt.bounds)
                         if check_any_out_of_bounds_np(opt.bounds):
-                            logging.info("out of bounds, exiting buy trade")
+                            self.logging.info("out of bounds, exiting buy trade")
                             """
                             kwargs = opt.buy_params.copy()
                             kwargs["quantity"] = self.quantity
@@ -213,7 +209,7 @@ class Both:
                         # short new position
                         self.short(opt)
                         opt.status = -1
-                        logging.info(f"new short for {opt.tradingsymbol}")
+                        self.logging.info(f"new short for {opt.tradingsymbol}")
                     # added for price not updating
                     last_price = self.ltp_from_ws_response(
                         [opt.instrument_token, opt.tradingsymbol]
@@ -232,7 +228,7 @@ class Both:
                             )
                             self.help.api().order_cancel(**params)
                     except Exception as e:
-                        logging.error(f"order {order} cancel error: {e}")
+                        self.logging.error(f"order {order} cancel error: {e}")
                 lst_of_pos = self.help.api().positions
                 for pos in lst_of_pos:
                     if pos["quantity"] != 0:
@@ -252,13 +248,13 @@ class Both:
                             tag="exit",
                             last_price=last_price,
                         )
-                        logging.info(args)
+                        self.logging.info(args)
                         resp = self.help.enter(args)
-                        logging.info(f"exit: {resp}")
+                        self.logging.info(f"exit: {resp}")
                 # cancel orders
             #
         except Exception as e:
-            logging.error(f"run error: {e}")
+            self.logging.error(f"run error: {e}")
             print_exc()
             timer(5)
             print("TRYING TO RECOVER")

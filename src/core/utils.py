@@ -5,7 +5,10 @@ from traceback import print_exc
 
 import pendulum as plum
 
-from constants import O_FUTL, S_DATA
+from toolkit.fileutils import Fileutils
+
+O_FUTL = Fileutils()
+S_DATA = "../data/"
 
 
 def dict_from_yml(key_to_search, value_to_match):
