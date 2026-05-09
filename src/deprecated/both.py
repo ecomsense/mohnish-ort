@@ -150,7 +150,7 @@ class Both:
 
     def run(self):
         try:
-            while not is_time_past(O_SETG["program"]["stop"]):
+            while not is_time_past(self.config.program.stop):
                 self.orders = self.help.api().orders
                 self.quotes = self.ws.ltp()
                 lst = [self.ce, self.pe]
@@ -168,11 +168,13 @@ class Both:
                         # is stop loss hit
                         if self.is_order_complete(subset):
                             opt.status = 1
+                            opt.entry_time = pendulum.now()
                         """
                         elif self.is_price_above(opt):
                             opt.buy_params["order_id"] = opt.buy_id
                             self.help.cover_and_buy(opt.buy_params)
                             opt.status = 1
+                            opt.entry_time = pendulum.now()
                         """
                         ## status is a fresh buy
                         if opt.status == 1:
@@ -185,11 +187,26 @@ class Both:
                         last_price_of_option = self.ltp_from_ws_response(
                             [opt.instrument_token, opt.tradingsymbol]
                         )
+                        
+                        # TTL check
+                        if self.ttl and opt.entry_time:
+                            minutes_in_trade = (pendulum.now() - opt.entry_time).in_minutes()
+                            if minutes_in_trade >= self.ttl:
+                                entry_price = opt.buy_params.get("price", 0)
+                                if last_price_of_option > entry_price:
+                                    self.logging.info(f"TTL {minutes_in_trade} mins exceeded and in profit zone. Exiting.")
+                                    params = opt.short_params
+                                    params["last_price"] = last_price_of_option
+                                    self.help.enter(params)
+                                    opt.status = 0
+                                    continue
+
                         lst_of_prices.append(last_price_of_option)
                         opt.bounds = opt.bounds[0], lst_of_prices
                         print(opt.bounds)
                         if check_any_out_of_bounds_np(opt.bounds):
                             self.logging.info("out of bounds, exiting buy trade")
+
                             """
                             kwargs = opt.buy_params.copy()
                             kwargs["quantity"] = self.quantity

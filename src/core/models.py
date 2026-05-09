@@ -20,6 +20,7 @@ class Options:
         self.tradingsymbol = ""
         self.instrument_token = 0
         self.bounds = []
+        self.entry_time = None
 
 
 class Calls(Options):

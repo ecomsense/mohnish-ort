@@ -44,13 +44,19 @@ class Wsocket:
         self._ltp = []
         self.logging = logging
         self.set_tokens(d_symbol)
-        kite = helper.api(config).kite
-        if config.broker == "bypass":
+        broker_obj = helper.api(config)
+        
+        if config.broker == "delta-india":
+            self.logging.debug("using broker-ai (delta-india) ticker")
+            self.kws = broker_obj.ticker()
+        elif config.broker == "bypass":
             self.logging.debug("using BYPASS ticker")
-            self.kws = kite.kws()
+            self.kws = broker_obj.kite.kws()
         else:
             self.logging.debug("using official ticker")
+            kite = broker_obj.kite
             self.kws = KiteTicker(kite.api_key, kite.access_token)
+            
         self.kws.on_ticks = self.on_ticks
         self.kws.on_connect = self.on_connect
         self.kws.on_close = self.on_close

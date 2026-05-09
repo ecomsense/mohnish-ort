@@ -2,86 +2,37 @@ from traceback import print_exc
 from core.models import Order
 from integrations.paper import Paper
 
-def get_bypass(config, logging):
-    from stock_brokers.bypass.bypass import Bypass
+def get_delta_india(config, logging):
     try:
-        tokpath = "../data/" + config.userid + ".txt"
-        enctoken = None
-        # Using a dummy check since O_FUTL was inside constants
-        # In a real refactor, we should move O_FUTL to utils or core_config
-        from toolkit.fileutils import Fileutils
-        O_FUTL = Fileutils()
-        
-        if not O_FUTL.is_file_not_2day(tokpath):
-            print(f"{tokpath} modified today ... reading {enctoken}")
-            with open(tokpath, "r") as tf:
-                enctoken = tf.read()
-                if len(enctoken) < 5:
-                    enctoken = None
-        print(f"enctoken to broker {enctoken}")
-        if config.live:
-            bypass = Bypass(
-                config.userid, config.password, config.totp, tokpath, enctoken
-            )
-        else:
-            from core.config import S_DATA
-            slippage = config.strategy.get("slippage", 0.0)
-            bypass = Paper(
-                config.userid, 
-                config.password, 
-                config.totp, 
-                tokpath, 
-                enctoken, 
-                logging=logging,
-                data_dir=S_DATA,
-                slippage_pct=slippage
-            )
-        if bypass.authenticate():
-            if not enctoken:
-                enctoken = bypass.kite.enctoken
-                with open(tokpath, "w") as tw:
-                    tw.write(enctoken)
-        else:
-            raise Exception("unable to authenticate")
-    except Exception as e:
-        print(f"unable to create bypass object {e}")
-        remove_token(tokpath)
-        get_bypass(config, logging)
-        print_exc()
-    else:
-        return bypass
-
-def get_zerodha(config, logging):
-    try:
-        from stock_brokers.zerodha.zerodha import Zerodha
-        tokpath = "../data/" + config.userid + ".txt"
-        zera = Zerodha(
-            user_id=config.userid,
+        from broker_ai.broker import BrokerAI
+        # broker-ai replaces stock-brokers and omspy-brokers bridges
+        broker = BrokerAI(
+            userid=config.userid,
             password=config.password,
             totp=config.totp,
             api_key=config.api_key,
             secret=config.secret,
-            tokpath=tokpath,
+            logging=logging
         )
-        if not zera.authenticate():
-            raise Exception("unable to authenticate")
+        if broker.authenticate():
+            return broker
+        else:
+            raise Exception("unable to authenticate with delta-india via broker-ai")
     except Exception as e:
-        print(f"exception while creating zerodha object {e}")
-        remove_token(tokpath)
-        get_zerodha(config, logging)
-    else:
-        return zera
-
-def remove_token(tokpath):
-    import os
-    if os.path.exists(tokpath):
-        os.remove(tokpath)
+        print(f"unable to create delta-india object {e}")
+        print_exc()
+        return None
 
 def login(config, logging):
-    if config.broker == "bypass":
-        return get_bypass(config, logging)
+    if config.broker == "delta-india":
+        return get_delta_india(config, logging)
+    elif config.broker == "bypass":
+        # Note: Bypass was part of stock-brokers, keeping as fallback or removing if strictly broker-ai only
+        # The user said broker-ai replaces stock-brokers
+        return get_delta_india(config, logging) 
     else:
-        return get_zerodha(config, logging)
+        # Default to delta-india/broker-ai as per consolidation
+        return get_delta_india(config, logging)
 
 class Helper:
     api_object = None

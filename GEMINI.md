@@ -8,7 +8,7 @@ Automated trading system for Bank Nifty Short Straddle strategy. It uses Kite/ex
 ## Architecture
 - **Language:** Python 3.x
 - **Core Frameworks:** Pydantic, PyYAML, Pandas, Pendulum
-- **External Dependencies:** `stock-brokers`, `kiteext`, `toolkit` (internal/custom repos)
+- **External Dependencies:** `broker-ai`, `kiteext`, `toolkit` (internal/custom repos)
 - **Entry Point:** `src/main.py`
 
 ## Conventions

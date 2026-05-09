@@ -10,10 +10,12 @@ trade:
 signals:
   exchange: BSE   # excel contain SR from this file
 strategy:
-  type: 0     # both side = 0, call only = 1, put only = -1
-  base: SENSEX
-  stop_loss: 60
-  target: 100
-  quantity: 20
-  slippage: 0.5   # 2 for SENSEX and 0.5 for others
+  type: 2     # Delta Strategy
+  base: BTC-DELTA
+  stop_loss: 500
+  target: 1000
+  ttl: 60     # Time To Live in minutes for T1 buy trades
+  quantity: 1
+  slippage: 5
 live: 1
+broker: delta-india

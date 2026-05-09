@@ -7,6 +7,7 @@ from core.utils import retry_until_not_none
 from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
 from core.config import load_symbols
+import pendulum
 
 class Oneside:
     def __init__(self, config, symbol_settings, logging, ce_or_pe="call"):
@@ -17,6 +18,7 @@ class Oneside:
         self.quantity = strategy_settings["quantity"]
         self.stop_loss = strategy_settings["stop_loss"]
         self.target = strategy_settings["target"]
+        self.ttl = strategy_settings.get("ttl")
         self.expiry_offset = strategy_settings.get("expiry_offset", 1)
         self.help = Helper(self.quantity, config, logging)
         self.ce_or_pe = Calls() if ce_or_pe == "call" else Puts()
@@ -206,9 +208,11 @@ class Oneside:
                     if pos["quantity"] != 0:
                         side = "SELL" if pos["quantity"] > 0 else "BUY"
                         instrument_token = (
-                            self.ce.instrument_token
-                            if self.ce.tradingsymbol == pos["symbol"]
-                            else self.pe.instrument_token
+                            self.ce_or_pe.instrument_token
+                            if self.ce_or_pe.tradingsymbol == pos["symbol"]
+                            else self.symbols.tokens_from_symbols(pos["symbol"])[0][
+                                "instrument_token"
+                            ]
                         )
                         last_price = self.ltp_from_ws_response(
                             [instrument_token, pos["symbol"]]
@@ -216,6 +220,44 @@ class Oneside:
                         args = dict(
                             symbol=pos["symbol"],
                             side=side,
+                            order_type="MARKET",
+                            tag="exit",
+                            last_price=last_price,
+                        )
+                        self.logging.info(args)
+                        resp = self.help.enter(args)
+                        self.logging.info(f"exit: {resp}")
+                # cancel orders
+            #
+        except Exception as e:
+            self.logging.error(f"run error: {e}")
+            print_exc()
+            timer(5)
+            print("TRYING TO RECOVER")
+            Helper.api_object = None
+            self.help.api()
+            self.run()
+
+
+if __name__ == "__main__":
+    print("test")
+    from core.config import get_config, set_logger
+    from engine.symbols import dump
+    from core.utils import dict_from_yml
+
+    try:
+        config = get_config()
+        logging = set_logger(config.log)
+        # download necessary masters
+        dump()
+        strategy_settings = config.strategy
+        # Unpack settings into instance attributes
+        symbol_settings = dict_from_yml("base", strategy_settings["base"])
+        Oneside(config, symbol_settings, logging).run()
+    except Exception as e:
+        print(e)
+        print_exc()
+e=side,
                             order_type="MARKET",
                             tag="exit",
                             last_price=last_price,

@@ -3,14 +3,13 @@ from toolkit.kokoo import blink, is_time_past
 from core.config import get_config, load_symbols, set_logger
 from engine.symbols import dump
 from core.utils import dict_from_yml
-from strategies.both import Both
-from strategies.oneside import Oneside
+from strategies.delta import Delta
 
 def root():
     try:
         config = get_config()
         logging = set_logger(config.log)
-        logging.info("HAPPY TRADING")
+        logging.info("HAPPY TRADING - DELTA STRATEGY")
         
         # download necessary masters
         dump()
@@ -25,12 +24,8 @@ def root():
             print(f"z #@! zZZ sleeping till {entry_time}")
             blink()
             
-        if strategy_settings["type"] == 0:
-            Both(config, symbol_settings, logging).run()
-        elif strategy_settings["type"] == -1:
-            Oneside(config, symbol_settings, logging, "put").run()
-        else:
-            Oneside(config, symbol_settings, logging).run()
+        Delta(config, symbol_settings, logging).run()
+
     except Exception as e:
         print(f"root error: {e}")
         print_exc()

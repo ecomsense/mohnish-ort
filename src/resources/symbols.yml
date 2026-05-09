@@ -3,6 +3,15 @@ exchanges:
   - NSE
   - BFO
   - BSE
+  - DELTA
+BTC-DELTA:
+  base: BTC
+  diff: 100
+  depth: 20
+  exchange: DELTA
+  expiry: "28MAR25"
+  instrument_token: 1001
+  tradingsymbol: BTC-USD
 NSE:
   base: BANKNIFTY
   diff: 100
