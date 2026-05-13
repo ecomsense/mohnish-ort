@@ -1,5 +1,7 @@
-from constants import CNFG, ensure_paths, init_logging, get_logger
+from constants import CNFG, S_DATA, ensure_paths, init_logging, get_logger
 from broker_ai.delta.wsocket import Wsocket
+from broker_ai.delta.symbols import Symbol
+from sdk.helper import RestApi
 from core.build import Builder
 from core.engine import Engine
 from toolkit.kokoo import is_time_past, blink
@@ -23,13 +25,22 @@ def root() -> None:
         )
         ws.connect(threaded=True)
 
+        config = CNFG.get("strategy", {})
         base = CNFG.get("base_instrument", {})
-        underlying_token = str(base.get("instrument_token", 0))
+        symbols = Symbol(
+            exchange=base.get("exchange", "DELTA"),
+            symbol=base.get("base", "BTC"),
+            data_path=S_DATA,
+        )
+        api = RestApi(config.get("quantity", 1))
+        underlying_token = int(base.get("instrument_token", 0))
+        underlying_symbol = base.get("tradingsymbol", "")
 
-        strategies = Builder().build()
+        strategies = Builder().build(config, symbols, api, ws,
+                                     underlying_token, underlying_symbol)
         if strategies:
             stop_time = CNFG.get("program", {}).get("stop", "15:30")
-            Engine(strategies, ws, [underlying_token], stop_time).run()
+            Engine(strategies, ws, [str(underlying_token)], stop_time).run()
         else:
             log.error("No strategies built. Exiting.")
 

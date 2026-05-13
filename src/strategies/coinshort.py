@@ -1,5 +1,6 @@
 from broker_ai.delta.symbols import Symbol
 from sdk.helper import RestApi
+from sdk.order_manager import OrderManager
 from sdk.models import Calls, Puts, Options, LegState
 from constants import get_logger
 from broker_ai.delta.wsocket import Wsocket
@@ -13,11 +14,12 @@ log = get_logger(__name__)
 
 class Coinshort:
     def __init__(self, config: dict, symbols: Symbol, api: RestApi,
-                 underlying_token: int, underlying_symbol: str) -> None:
+                 om: OrderManager, underlying_token: int, underlying_symbol: str) -> None:
         log.info("Initializing Coinshort Strategy (T1)")
         self.config = config
         self.symbols = symbols
         self.api = api
+        self.om = om
         self.underlying_token = underlying_token
         self.underlying_symbol = underlying_symbol
 
@@ -33,10 +35,6 @@ class Coinshort:
 
         if self.upper_bound == 0:
             self.initial_entry()
-
-    @property
-    def quantity(self) -> int:
-        return self.config.get("quantity", 1)
 
     @property
     def stop_loss(self) -> float:
@@ -103,11 +101,7 @@ class Coinshort:
             log.error(f"Error loading state: {e}")
 
     def _is_order_complete(self, order_id: str) -> bool:
-        done = {"COMPLETE", "FILLED"}
-        for o in self.api.api().orders:
-            if o.get("order_id") == order_id and o.get("status") in done:
-                return True
-        return False
+        return self.om.is_order_complete(order_id)
 
     def get_ltp(self, ws: Wsocket, instrument_token: int, tradingsymbol: str) -> float:
         price = ws.ltp.get(str(instrument_token))

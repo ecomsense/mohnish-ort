@@ -1,0 +1,102 @@
+from broker_ai.delta.wsocket import Wsocket
+from broker_ai.delta.symbols import Symbol
+from sdk.helper import RestApi
+from constants import get_logger
+
+log = get_logger(__name__)
+
+class OrderManager:
+    def __init__(self, ws: Wsocket, symbols: Symbol, api: RestApi, config: dict) -> None:
+        self.ws = ws
+        self.symbols = symbols
+        self.api = api
+        self.config = config
+        self._subscribed: set[str] = set()
+
+    @property
+    def quantity(self) -> int:
+        return self.config.get("quantity", 1)
+
+    @property
+    def stop_loss(self) -> float:
+        return self.config["stop_loss"]
+
+    @property
+    def target(self) -> float:
+        return self.config["target"]
+
+    @property
+    def slippage(self) -> float:
+        return self.config.get("slippage", 0.5)
+
+    def _subscribe(self, token: str) -> None:
+        if token not in self._subscribed:
+            self._subscribed.add(token)
+            self.ws.subscribe([token])
+
+    def _get_price(self, token: str) -> float:
+        return self.ws.ltp.get(token, 0.0)
+
+    def _resolve_option(self, underlying_price: float, option_type: str, distance: int = 0) -> dict:
+        rows = self.symbols.filter_by_moneyness(underlying_price, distance, option_type)
+        if not rows:
+            raise ValueError(f"No symbol found for {option_type} at {underlying_price}")
+        return rows[0]
+
+    def enter_short(self, underlying_price: float, option_type: str) -> dict:
+        row = self._resolve_option(underlying_price, option_type)
+        token = row["ws_token"]
+        symbol = row["tradingsymbol"]
+        self._subscribe(token)
+        price = self._get_price(token)
+        if price == 0.0:
+            log.warning(f"No LTP yet for {symbol}, using last known")
+            return {"error": "no_quote"}
+        short_id = self.api.enter({
+            "symbol": symbol,
+            "side": "SELL",
+            "order_type": "MARKET",
+            "last_price": price,
+        })
+        sl_id = self.api.enter({
+            "symbol": symbol,
+            "side": "BUY",
+            "order_type": "SL",
+            "quantity": self.quantity * 2,
+            "last_price": price,
+            "trigger_price": price + self.stop_loss,
+            "price": price + self.stop_loss + self.slippage,
+            "tag": "stoploss",
+        })
+        result = {
+            "symbol": symbol,
+            "token": token,
+            "strike": row["strike"],
+            "price": price,
+            "short_id": short_id,
+            "sl_id": sl_id,
+        }
+        log.info(f"Entered short {symbol} @ {price}")
+        return result
+
+    def exit_position(self, token: str, symbol: str) -> None:
+        price = self._get_price(token)
+        if price == 0.0:
+            log.warning(f"No LTP for exit {symbol}")
+            return
+        self.api.enter({
+            "symbol": symbol,
+            "side": "BUY",
+            "order_type": "MARKET",
+            "quantity": self.quantity,
+            "last_price": price,
+            "tag": "exit",
+        })
+        log.info(f"Exited {symbol} @ {price}")
+
+    def is_order_complete(self, order_id: str) -> bool:
+        done = {"COMPLETE", "FILLED"}
+        for o in self.api.api().orders:
+            if o.get("order_id") == order_id and o.get("status") in done:
+                return True
+        return False

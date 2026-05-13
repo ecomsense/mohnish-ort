@@ -1,7 +1,9 @@
 from broker_ai.delta.symbols import Symbol
+from broker_ai.delta.wsocket import Wsocket
 from sdk.helper import RestApi
+from sdk.order_manager import OrderManager
 from strategies.coinshort import Coinshort
-from constants import CNFG, S_DATA, get_logger
+from constants import get_logger
 
 log = get_logger(__name__)
 
@@ -9,27 +11,18 @@ class Builder:
     def __init__(self) -> None:
         self.strategies: list[Coinshort] = []
 
-    def build(self) -> list[Coinshort]:
+    def build(self, config: dict, symbols: Symbol, api: RestApi,
+              ws: Wsocket, underlying_token: int, underlying_symbol: str) -> list[Coinshort]:
         try:
-            strategy_name = CNFG.get("strategy_name", "Coinshort")
-            if strategy_name == "Coinshort":
-                config = CNFG.get("strategy", {})
-                base = CNFG.get("base_instrument", {})
-                symbols = Symbol(
-                    exchange=base.get("exchange", "DELTA"),
-                    symbol=base.get("base", "BTC"),
-                    data_path=S_DATA,
-                )
-                api = RestApi(config.get("quantity", 1))
-                underlying_token = base.get("instrument_token", 0)
-                underlying_symbol = base.get("tradingsymbol", "")
-                self.strategies.append(Coinshort(
-                    config=config,
-                    symbols=symbols,
-                    api=api,
-                    underlying_token=underlying_token,
-                    underlying_symbol=underlying_symbol,
-                ))
+            om = OrderManager(ws=ws, symbols=symbols, api=api, config=config)
+            self.strategies.append(Coinshort(
+                config=config,
+                symbols=symbols,
+                api=api,
+                om=om,
+                underlying_token=underlying_token,
+                underlying_symbol=underlying_symbol,
+            ))
             return self.strategies
         except Exception as e:
             log.error(f"Builder.build error: {e}")
