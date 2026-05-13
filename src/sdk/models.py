@@ -1,5 +1,13 @@
+from enum import Enum, auto
 from typing import Any
 from sdk.utils import dict_from_yml
+
+
+class LegState(Enum):
+    FLAT = auto()
+    SHORT = auto()
+    LONG = auto()
+    SHIFTED = auto()
 
 
 def read_exchange_from_symbol_yml(strategy_settings):
@@ -13,7 +21,7 @@ def read_exchange_from_symbol_yml(strategy_settings):
 
 class Options:
     def __init__(self) -> None:
-        self.status: int = 0
+        self.status: LegState = LegState.FLAT
         self.buy_id: str | int = 0
         self.buy_params: dict[str, Any] = {}
         self.short_id: str | int = 0

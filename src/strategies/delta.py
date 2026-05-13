@@ -1,7 +1,7 @@
 from sdk.symbol import OptionSymbol
 from sdk.helper import RestApi
 from sdk.books import Books
-from sdk.models import Calls, Puts, Options
+from sdk.models import Calls, Puts, Options, LegState
 from constants import CNFG, get_logger, S_DATA
 from broker_ai.delta.wsocket import Wsocket
 import pendulum
@@ -107,22 +107,22 @@ class Delta:
                 return
 
             for opt in [self.ce, self.pe]:
-                if opt.status == -1:
+                if opt.status == LegState.SHORT:
                     if books.is_order_complete(opt.buy_id):
                         log.info(f"{opt.tradingsymbol} SAR hit. Status flipping to LONG.")
-                        opt.status = 1
+                        opt.status = LegState.LONG
                         opt.entry_time = pendulum.now()
                         opt.buy_params["price"] = opt.buy_params["trigger_price"]
                         self.set_bounds(opt)
 
-                elif opt.status == 1:
+                elif opt.status == LegState.LONG:
                     pass
                     # TTL and OOB checks stub
 
-            if bn_ltp >= self.upper_bound and self.ce.status == 1:
+            if bn_ltp >= self.upper_bound and self.ce.status == LegState.LONG:
                 self.tier += 1
                 self.t_upper_protocol(ws)
-            elif bn_ltp <= self.lower_bound and self.pe.status == 1:
+            elif bn_ltp <= self.lower_bound and self.pe.status == LegState.LONG:
                 self.tier += 1
                 self.t_lower_protocol(ws)
 

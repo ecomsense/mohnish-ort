@@ -68,7 +68,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ### Design
 
-- [ ] D1: Delta uses magic integers for status (`-1`,`0`,`1`). Should be `LegState` enum.
 - [ ] D2: `pyproject.toml` lists `pyopenssl`, `setuptools`, `wheel` as runtime deps — build tools only.
 - [ ] D3: Delta reads directly from global `CNFG` — no DI, hard to unit test.
 
