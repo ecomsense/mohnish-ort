@@ -1,25 +1,30 @@
 from broker_ai.delta.wsocket import Wsocket
-from constants import get_logger, CNFG
+from constants import get_logger
 from toolkit.kokoo import is_time_past, blink
 import traceback
 
 log = get_logger(__name__)
 
 class Engine:
-    def __init__(self, strategies: list) -> None:
+    def __init__(self, strategies: list, ws: Wsocket,
+                 subscribe_tokens: list[str], stop_time: str) -> None:
         self.strategies = strategies
-        self.ws = Wsocket(
-            api_key=CNFG.get("api_key"),
-            api_secret=CNFG.get("secret"),
-        )
-        self.ws.connect(threaded=True)
+        self.ws = ws
+        self._tokens = subscribe_tokens
+        self._stop = stop_time
+        self.ws.on_connect = self._on_reconnect
+
+    def _on_reconnect(self) -> None:
+        if self._tokens:
+            self.ws.subscribe(self._tokens)
 
     def run(self) -> None:
         log.info("Engine started")
-        stop_time = CNFG.get("program", {}).get("stop", "15:30")
+        if self._tokens:
+            self.ws.subscribe(self._tokens)
 
         try:
-            while not is_time_past(stop_time):
+            while not is_time_past(self._stop):
                 for strategy in self.strategies:
                     try:
                         strategy.tick(self.ws)
