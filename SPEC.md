@@ -1,5 +1,14 @@
 # SPEC: mohnish-ort (Coinshort Strategy)
 
+## Documents
+
+| File | What it covers |
+|------|----------------|
+| [SPEC.md](SPEC.md) | Entry point: arch, files, gaps |
+| [DESIGN.md](docs/DESIGN.md) | Data structures, interfaces, state transitions |
+| [SDK.md](docs/SDK.md) | External API contracts, constraints |
+| [FLOW.md](docs/FLOW.md) | Data flow, lifecycle, order placement |
+
 ## Overview
 Automated trading system for Delta Exchange India. BTC monthly options. Short straddle with Rolling SAR and T-Series Action Zones.
 
