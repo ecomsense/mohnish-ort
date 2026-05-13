@@ -1,4 +1,4 @@
-from sdk.symbol import OptionSymbol
+from broker_ai.delta.symbols import Symbol
 from sdk.helper import RestApi
 from sdk.models import Calls, Puts, Options, LegState
 from constants import get_logger
@@ -12,11 +12,14 @@ log = get_logger(__name__)
 
 
 class Coinshort:
-    def __init__(self, config: dict, symbols: OptionSymbol, api: RestApi) -> None:
+    def __init__(self, config: dict, symbols: Symbol, api: RestApi,
+                 underlying_token: int, underlying_symbol: str) -> None:
         log.info("Initializing Coinshort Strategy (T1)")
         self.config = config
         self.symbols = symbols
         self.api = api
+        self.underlying_token = underlying_token
+        self.underlying_symbol = underlying_symbol
 
         self.tier: int = 1
         self.upper_bound: float = 0
@@ -119,7 +122,7 @@ class Coinshort:
 
     def tick(self, ws: Wsocket) -> None:
         try:
-            bn_ltp = self.get_ltp(ws, self.symbols.instrument_token, self.symbols.tradingsymbol)
+            bn_ltp = self.get_ltp(ws, self.underlying_token, self.underlying_symbol)
             if bn_ltp == 0:
                 return
 

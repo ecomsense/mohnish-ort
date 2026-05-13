@@ -43,7 +43,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 | `src/constants.py` | Config + logger |
 | `src/sdk/helper.py` | RestApi (broker wrapper) |
 | `broker_ai.delta.wsocket` | Websocket ticker (from broker-ai dep) |
-| `src/sdk/symbol.py` | Symbol resolution |
+| `broker_ai.delta.symbols` | Symbol resolution (from broker-ai dep) |
 | `src/sdk/models.py` | Data models |
 | `factory/settings.yml` | Strategy config |
 
