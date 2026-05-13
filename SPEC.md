@@ -43,7 +43,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 | `src/strategies/delta.py` | Strategy logic |
 | `src/constants.py` | Config + logger |
 | `src/sdk/helper.py` | RestApi (broker wrapper) |
-| `src/sdk/wserver.py` | Websocket ticker |
+| `broker_ai.delta.wsocket` | Websocket ticker (Delta Exchange) |
 | `src/sdk/books.py` | Order/position queries |
 | `src/sdk/symbol.py` | Symbol resolution |
 | `src/sdk/models.py` | Data models |
@@ -70,7 +70,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ### Design
 
 - [ ] D1: Delta uses magic integers for status (`-1`,`0`,`1`). Should be `LegState` enum.
-- [ ] D2: `sdk/wserver.py` `_on_ticks` callback is empty — registered but does nothing.
+- [ ] D2: `core/engine.py` `_on_ticks` callback not set — Wsocket ticks flow through to `ws.ltp`
 - [ ] D3: `sdk/signals.py` SR-level functions (`read_supp_and_res`, `pfx_and_sfx`, `find_band`) are dead code.
 - [ ] D4: `pyproject.toml` lists `pyopenssl`, `setuptools`, `wheel` as runtime deps — build tools only.
 - [ ] D5: Delta reads directly from global `CNFG` — no DI, hard to unit test.
@@ -88,4 +88,4 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [x] Logger init at import time (moved to `main.py`)
 - [x] Logger crash on failure (no silent fallback)
 - [x] `show` semantics (true=console, false=file)
-- [x] Websocket moved to `broker_ai.delta.wsocket.Wsocket` (sdk/wserver.py deleted)
+- [x] Websocket moved to `broker_ai.delta.wsocket.Wsocket`
