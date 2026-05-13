@@ -65,7 +65,7 @@ class ExecutionResult:
 ## Interfaces
 
 ```python
-class Delta:
+class Coinshort:
     def tick(self, ws: Wsocket, books: Books) -> None
 
 class OrderManager:

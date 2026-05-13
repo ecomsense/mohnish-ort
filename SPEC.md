@@ -1,14 +1,4 @@
-# SPEC: mohnish-ort (Delta Strategy)
-
-## Documents
-
-| File | What it covers |
-|------|----------------|
-| [SPEC.md](SPEC.md) | Entry point: arch, files, gaps |
-| [DESIGN.md](docs/DESIGN.md) | Data structures, interfaces, state shape |
-| [RULES.md](docs/RULES.md) | State machines: T1, T2, interlock |
-| [SDK.md](docs/SDK.md) | External API contracts, constraints |
-| [FLOW.md](docs/FLOW.md) | Data flow, lifecycle, order placement |
+# SPEC: mohnish-ort (Coinshort Strategy)
 
 ## Overview
 Automated trading system for Delta Exchange India. BTC monthly options. Short straddle with Rolling SAR and T-Series Action Zones.
@@ -21,16 +11,16 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 └──────┬──────┘
        │
 ┌──────▼──────┐
-│   Builder   │  Delta()
+│   Builder   │  Coinshort()
 └──────┬──────┘
        │
 ┌──────▼──────┐
 │   Engine    │  while not stop: s.tick(ws, books)
 └──────┬──────┘
        │
-┌──────▼──────┐
-│   Delta     │  read state → decide intents → execute
-└─────────────┘
+┌──────▼──────────┐
+│   Coinshort     │  read state → decide intents → execute
+└─────────────────┘
 ```
 
 ## Key Files
@@ -40,7 +30,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 | `src/main.py` | Entry point |
 | `src/core/build.py` | Strategy construction |
 | `src/core/engine.py` | Tick loop orchestrator |
-| `src/strategies/delta.py` | Strategy logic |
+| `src/strategies/coinshort.py` | Strategy logic |
 | `src/constants.py` | Config + logger |
 | `src/sdk/helper.py` | RestApi (broker wrapper) |
 | `broker_ai.delta.wsocket` | Websocket ticker (Delta Exchange) |
@@ -53,7 +43,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ### Implement (stubs)
 
-- [ ] Delta.initial_entry() is `pass`
+- [ ] Coinshort.initial_entry() is `pass`
 - [ ] TTL/OOB logic in tick() stubbed
 - [ ] T2 protocols (t_upper/lower) not ported to tick pattern
 - [ ] cleanup() is stub
@@ -64,18 +54,18 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ### Bugs
 
 - [ ] B1: `sdk/helper.py` — `Fake.__init__` references `self.cols` but never defines it. Crashes on `order_place`.
-- [ ] B3: `strategies/delta.py:139` — `set_bounds` accesses `buy_params["price"]` without key check. May KeyError.
+- [ ] B3: `strategies/coinshort.py` — `set_bounds` accesses `buy_params["price"]` without key check. May KeyError.
 
 ### Design
 
-- [ ] D3: Delta reads directly from global `CNFG` — no DI, hard to unit test.
+- [ ] D3: Coinshort reads directly from global `CNFG` — no DI, hard to unit test.
 
 ### Code Quality
 
 - [ ] Q1: `sdk/helper.py` — `log = get_logger(__name__)` before `from sdk.models import Order`. Non-standard import order.
 - [ ] Q2: `ensure_paths()` creates log dir but not `S_DATA` for state files.
 - [ ] Q3: `sdk/books.py:29` — `is_order_complete` hardcodes `"COMPLETE"` string. Broker-dependent.
-- [ ] Q4: `core/build.py` — `symbol_settings` variable assigned but never passed to Delta.
+- [ ] Q4: `core/build.py` — `symbol_settings` variable assigned but never passed to Coinshort.
 
 ### Done
 

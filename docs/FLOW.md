@@ -5,8 +5,8 @@
 ```
 main.py
   ├─ sleep till start time
-  ├─ Builder.build() → Delta()
-  └─ Engine([Delta]).run()
+  ├─ Builder.build() → Coinshort()
+  └─ Engine([Coinshort]).run()
 
 Engine.run()
   ├─ Wsocket() ← connects to Delta Exchange WS
@@ -14,13 +14,12 @@ Engine.run()
   └─ while not stop:
        for each strategy:
          strategy.tick(ws, books)
-       blink()
 ```
 
 ## Tick Cycle
 
 ```
-Delta.tick(ws, books)
+Coinshort.tick(ws, books)
   │
   ├─ 1. underlying_price = ws.ltp(underlying_token)
   │

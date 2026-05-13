@@ -13,9 +13,9 @@ from copy import deepcopy
 log = get_logger(__name__)
 
 
-class Delta:
+class Coinshort:
     def __init__(self) -> None:
-        log.info("Initializing Delta Strategy (T1)")
+        log.info("Initializing Coinshort Strategy (T1)")
         self.strategy_settings: dict = CNFG.get("strategy", {})
 
         symbol_settings: dict = CNFG.get("base_instrument", {})
@@ -129,7 +129,7 @@ class Delta:
             self.save_state()
 
         except Exception as e:
-            log.error(f"Delta tick error: {e}")
+            log.error(f"Coinshort tick error: {e}")
             print_exc()
 
     def set_bounds(self, opt: Options) -> None:
@@ -146,5 +146,5 @@ class Delta:
         pass
 
     def cleanup(self, books: Books) -> None:
-        log.info("Delta Strategy cleanup")
+        log.info("Coinshort Strategy cleanup")
         # stub

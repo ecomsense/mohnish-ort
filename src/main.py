@@ -9,7 +9,7 @@ def root() -> None:
         ensure_paths()
         init_logging()
         log = get_logger(__name__)
-        log.info("HAPPY TRADING - DELTA STRATEGY (SUPER-AI PATTERN)")
+        log.info("HAPPY TRADING - COINSHORT STRATEGY")
 
         entry_time: str = CNFG.get("program", {}).get("start", "09:15")
         
