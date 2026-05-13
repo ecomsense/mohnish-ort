@@ -39,8 +39,7 @@ def root() -> None:
         strategy = Builder().build(config, symbols, api, ws,
                                    underlying_token, underlying_symbol)
         if strategy:
-            stop_time = CNFG.get("program", {}).get("stop", "15:30")
-            Engine(strategy, ws, [str(underlying_token)], stop_time).run()
+            Engine(strategy, ws, [str(underlying_token)]).run()
         else:
             log.error("No strategy built. Exiting.")
 
