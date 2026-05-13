@@ -88,4 +88,4 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [x] Logger init at import time (moved to `main.py`)
 - [x] Logger crash on failure (no silent fallback)
 - [x] `show` semantics (true=console, false=file)
-- [x] Wserver deleted, replaced with `broker_ai.delta.wsocket.Wsocket`
+- [x] Websocket moved to `broker_ai.delta.wsocket.Wsocket` (sdk/wserver.py deleted)
