@@ -9,7 +9,7 @@ main.py
   └─ Engine([Delta]).run()
 
 Engine.run()
-  ├─ Wserver() ← connects, subscribes underlying
+  ├─ Wsocket() ← connects to Delta Exchange WS
   ├─ Books() ← initializes broker API
   └─ while not stop:
        for each strategy:

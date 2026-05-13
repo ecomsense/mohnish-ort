@@ -21,10 +21,10 @@ orders -> List[Dict]
 positions -> List[Dict]
 ```
 
-## Quote Format (Wserver._ltp)
+## Quote Format (Wsocket.ltp)
 
 ```json
-[{"instrument_token": 12345, "last_price": 50000.5}]
+{"12345": 50000.5, "67890": 150.0}
 ```
 
 ## Order Format (Books.orders)

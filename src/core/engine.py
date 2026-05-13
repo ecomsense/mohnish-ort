@@ -1,4 +1,4 @@
-from sdk.wserver import Wserver
+from broker_ai.delta.wsocket import Wsocket
 from sdk.books import Books
 from constants import get_logger, CNFG
 from toolkit.kokoo import is_time_past, blink
@@ -10,7 +10,11 @@ class Engine:
     def __init__(self, strategies: list) -> None:
         self.strategies = strategies
         self.books = Books()
-        self.ws = Wserver()
+        self.ws = Wsocket(
+            api_key=CNFG.get("api_key"),
+            api_secret=CNFG.get("secret"),
+        )
+        self.ws.connect(threaded=True)
 
     def run(self) -> None:
         log.info("Engine started")

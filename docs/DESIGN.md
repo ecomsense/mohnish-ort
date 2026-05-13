@@ -66,7 +66,7 @@ class ExecutionResult:
 
 ```python
 class Delta:
-    def tick(self, ws: Wserver, books: Books) -> None
+    def tick(self, ws: Wsocket, books: Books) -> None
 
 class OrderManager:
     def execute(self, intent: Intent, underlying_price: float) -> ExecutionResult
@@ -78,7 +78,7 @@ class Books:
     def orders(self) -> List[Dict]
     def is_order_complete(self, order_id: str) -> bool
 
-class Wserver:
-    def ltp(self, tokens: List[str] | None) -> List[Dict]
-    def subscribe(self, tokens: List[int]) -> None
+class Wsocket:
+    def ltp(self) -> dict[str, float]
+    def subscribe(self, tokens: list[str]) -> None
 ```

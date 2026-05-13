@@ -65,7 +65,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ### Bugs
 
 - [ ] B1: `sdk/helper.py` — `Fake.__init__` references `self.cols` but never defines it. Crashes on `order_place`.
-- [ ] B2: `sdk/wserver.py:30` — `instrument_token or d` fallback breaks when token is `0` (falsy).
 - [ ] B3: `strategies/delta.py:139` — `set_bounds` accesses `buy_params["price"]` without key check. May KeyError.
 
 ### Design
@@ -89,3 +88,4 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [x] Logger init at import time (moved to `main.py`)
 - [x] Logger crash on failure (no silent fallback)
 - [x] `show` semantics (true=console, false=file)
+- [x] Wserver deleted, replaced with `broker_ai.delta.wsocket.Wsocket`

@@ -1,9 +1,9 @@
 from sdk.symbol import OptionSymbol
 from sdk.helper import RestApi
-from sdk.wserver import Wserver
 from sdk.books import Books
 from sdk.models import Calls, Puts, Options
 from constants import CNFG, get_logger, S_DATA
+from broker_ai.delta.wsocket import Wsocket
 import pendulum
 import os
 import json
@@ -89,20 +89,18 @@ class Delta:
         except Exception as e:
             log.error(f"Error loading state: {e}")
 
-    def get_ltp(self, ws: Wserver, instrument_token: int, tradingsymbol: str) -> float:
-        quotes = ws.ltp()
-        try:
-            price = [d["last_price"] for d in quotes if d["instrument_token"] == instrument_token][0]
+    def get_ltp(self, ws: Wsocket, instrument_token: int, tradingsymbol: str) -> float:
+        price = ws.ltp.get(str(instrument_token))
+        if price is not None:
             return price
-        except Exception:
-            log.error(f"Could not fetch LTP for {tradingsymbol}")
-            return 0.0
+        log.error(f"Could not fetch LTP for {tradingsymbol}")
+        return 0.0
 
     def initial_entry(self) -> None:
         log.info("Executing Initial T1 Neutral Entry")
         # stub - will implement fully
 
-    def tick(self, ws: Wserver, books: Books) -> None:
+    def tick(self, ws: Wsocket, books: Books) -> None:
         try:
             bn_ltp = self.get_ltp(ws, self.symbols.instrument_token, self.symbols.tradingsymbol)
             if bn_ltp == 0:
@@ -139,11 +137,11 @@ class Delta:
         lst_of_bands = (median - self.strategy_settings["stop_loss"], median + self.strategy_settings["target"])
         opt.bounds = [lst_of_bands], [median]
 
-    def t_upper_protocol(self, ws: Wserver) -> None:
+    def t_upper_protocol(self, ws: Wsocket) -> None:
         # stub for T2 upper protocol
         pass
 
-    def t_lower_protocol(self, ws: Wserver) -> None:
+    def t_lower_protocol(self, ws: Wsocket) -> None:
         # stub for T2 lower protocol
         pass
 
