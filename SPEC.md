@@ -47,7 +47,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 | `src/sdk/books.py` | Order/position queries |
 | `src/sdk/symbol.py` | Symbol resolution |
 | `src/sdk/models.py` | Data models |
-| `src/sdk/signals.py` | Signal functions |
 | `factory/settings.yml` | Strategy config |
 
 ## Known Issues
@@ -70,10 +69,8 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ### Design
 
 - [ ] D1: Delta uses magic integers for status (`-1`,`0`,`1`). Should be `LegState` enum.
-- [ ] D2: `core/engine.py` `_on_ticks` callback not set — Wsocket ticks flow through to `ws.ltp`
-- [ ] D3: `sdk/signals.py` SR-level functions (`read_supp_and_res`, `pfx_and_sfx`, `find_band`) are dead code.
-- [ ] D4: `pyproject.toml` lists `pyopenssl`, `setuptools`, `wheel` as runtime deps — build tools only.
-- [ ] D5: Delta reads directly from global `CNFG` — no DI, hard to unit test.
+- [ ] D2: `pyproject.toml` lists `pyopenssl`, `setuptools`, `wheel` as runtime deps — build tools only.
+- [ ] D3: Delta reads directly from global `CNFG` — no DI, hard to unit test.
 
 ### Code Quality
 
