@@ -33,7 +33,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 | `src/strategies/coinshort.py` | Strategy logic |
 | `src/constants.py` | Config + logger |
 | `src/sdk/helper.py` | RestApi (broker wrapper) |
-| `broker_ai.delta.wsocket` | Websocket ticker (Delta Exchange) |
+| `broker_ai.delta.wsocket` | Websocket ticker (from broker-ai dep) |
 | `src/sdk/books.py` | Order/position queries |
 | `src/sdk/symbol.py` | Symbol resolution |
 | `src/sdk/models.py` | Data models |
@@ -57,6 +57,8 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [ ] B3: `strategies/coinshort.py` — `set_bounds` accesses `buy_params["price"]` without key check. May KeyError.
 
 ### Design
+
+*None — all resolved.*
 
 ### Code Quality
 

@@ -4,10 +4,10 @@
 
 ```python
 class LegState(Enum):
-    FLAT = 0
-    SHORT = -1
-    LONG = 1
-    SHIFTED = 2  # short after strike shift, no SAR
+    FLAT = auto()
+    SHORT = auto()
+    LONG = auto()
+    SHIFTED = auto()  # short after strike shift, no SAR
 
 class IntentType(Enum):
     ENTER_SHORT_ATM_CE = "enter_short_atm_ce"
@@ -18,7 +18,7 @@ class IntentType(Enum):
     NONE = "none"
 ```
 
-## Dataclasses
+## Dataclasses (target — not yet implemented)
 
 ```python
 @dataclass
@@ -35,23 +35,36 @@ class ExecutionResult:
     strike: int
 ```
 
-## Persistent State (JSON)
+## Persistent State (JSON — coinshort_state.json)
 
 ```json
 {
   "tier": 2,
   "upper_bound": 52000.0,
   "lower_bound": 48000.0,
-  "call_strike": 50000,
-  "put_strike": 50000,
-  "call_state": 1,
-  "put_state": -1,
-  "call_entry_price": 150.0,
-  "put_entry_price": 180.0,
-  "call_entry_time": "2026-05-06T10:30:00",
-  "put_entry_time": "2026-05-06T11:15:00"
+  "current_premium": 1500.0,
+  "ce": {
+    "status": 2,
+    "tradingsymbol": "BTC-28MAR25-50000-CE",
+    "instrument_token": 1002,
+    "entry_time": "2026-05-06T10:30:00",
+    "buy_params": {"price": 150.0},
+    "short_params": {"last_price": 150.0},
+    "bounds": [[[100.0, 250.0]], [150.0]]
+  },
+  "pe": {
+    "status": 3,
+    "tradingsymbol": "BTC-28MAR25-50000-PE",
+    "instrument_token": 1003,
+    "entry_time": "2026-05-06T11:15:00",
+    "buy_params": {"price": 180.0},
+    "short_params": {"last_price": 180.0},
+    "bounds": [[[130.0, 280.0]], [180.0]]
+  }
 }
 ```
+
+*Note: `status` values are `LegState.value`: FLAT=1, SHORT=2, LONG=3, SHIFTED=4*
 
 ## Volatile State (NOT persisted)
 
@@ -70,7 +83,7 @@ class Coinshort:
     def tick(self, ws: Wsocket, books: Books) -> None
     def cleanup(self, books: Books) -> None
 
-class OrderManager:
+class OrderManager:   # target — not yet implemented
     def execute(self, intent: Intent, underlying_price: float) -> ExecutionResult
 
 class Books:
@@ -78,9 +91,11 @@ class Books:
     def positions(self) -> List[Dict]
     @property
     def orders(self) -> List[Dict]
-    def is_order_complete(self, order_id: str) -> bool
+    def is_complete(self, order_id: str) -> bool
 
 class Wsocket:
+    @property
     def ltp(self) -> dict[str, float]
     def subscribe(self, tokens: list[str]) -> None
+    def connect(self, threaded: bool = True) -> None
 ```

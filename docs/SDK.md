@@ -1,24 +1,41 @@
 # SDK: External API Contracts
 
-## broker-ai (via RestApi)
+## broker-ai (RestApi → Fake)
+
+Current backend is `broker_ai.fake.fake.Fake` (development/paper broker).
 
 ```python
-order_place(symbol: str, side: str, order_type: str, quantity: int,
-            trigger_price: float | None = None, price: float | None = None,
-            tag: str | None = None) -> str            # returns order_id
+# Broker base (broker_ai.base.Broker)
+order_place(symbol: str, side: str, order_type: str = "MARKET",
+            quantity: int = 1, **kwargs) -> str
+order_modify(order_id: str, **kwargs) -> str
+order_cancel(order_id: str) -> str
+authenticate() -> bool
 
-order_modify(order_id: str, order_type: str, price: float) -> None
-
-ticker() -> object
-  .on_ticks(callable)          # set callback
-  .subscribe(tokens: List[int])
-  .set_mode(token, mode)
-  .connect(threaded=True)
-
-# return type
-trades -> List[Dict]
-orders -> List[Dict]
+# Properties
+orders   -> List[Dict]
 positions -> List[Dict]
+trades   -> List[Dict]
+```
+
+## Websocket (broker_ai.delta.wsocket.Wsocket)
+
+```python
+Wsocket(api_key: str | None = None, api_secret: str | None = None)
+    .connect(threaded=True)    # connects to Delta Exchange WS
+    .subscribe(tokens: list[str])
+    .unsubscribe(tokens: list[str])
+    .disconnect()
+
+    # Properties
+    .ltp        -> dict[str, float]    # {symbol_token: price}
+    .connected  -> bool
+
+    # Callbacks (set by user)
+    .on_connect = lambda: None
+    .on_ticks   = lambda ltp: None
+    .on_close   = lambda: None
+    .on_error   = lambda err: None
 ```
 
 ## Quote Format (Wsocket.ltp)
@@ -46,7 +63,7 @@ positions -> List[Dict]
 |--|--|
 | Async | NOT supported (sync only) |
 | State format | JSON (~0.5ms) |
-| Quote sub | On-demand via OrderManager |
-| Underlying sub | Once in Engine |
+| Quote source | `ws.ltp` dict (on-demand) |
+| Underlying | Token configured in `settings.yml: base_instrument` |
 | Python | 3.10 |
 | Deps | uv sync, broker-ai(git), toolkit(git), pendulum, pyyaml |

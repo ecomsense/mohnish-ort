@@ -4,35 +4,56 @@
 
 ```
 main.py
-  ├─ sleep till start time
-  ├─ Builder.build() → Coinshort()
+  ├─ ensure_paths(), init_logging()
+  ├─ Builder.build()
+  │     ├─ reads config + symbols from CNFG
+  │     ├─ creates OptionSymbol, RestApi
+  │     └─ returns Coinshort(config, symbols, api)
   └─ Engine([Coinshort]).run()
 
 Engine.run()
-  ├─ Wsocket() ← connects to Delta Exchange WS
-  ├─ Books() ← initializes broker API
+  ├─ Books() ← wraps broker API
+  ├─ Wsocket(api_key, api_secret) ← connects to Delta Exchange WS
   └─ while not stop:
        for each strategy:
          strategy.tick(ws, books)
+       blink()
 ```
 
-## Tick Cycle
+## Tick Cycle (current — stubs)
 
 ```
 Coinshort.tick(ws, books)
   │
-  ├─ 1. underlying_price = ws.ltp(underlying_token)
+  ├─ 1. bn_ltp = ws.ltp.get(str(underlying_token))
+  │      if bn_ltp == 0: return
+  │
+  ├─ 2. for each leg (CE, PE):
+  │      if SHORT and SL order COMPLETE → flip to LONG
+  │      if LONG → stub (TTL/OOB not implemented)
+  │
+  ├─ 3. if underlying crosses bound + leg is LONG:
+  │      tier += 1, run T2 protocol (stub)
+  │
+  └─ 4. save_state() → JSON to disk
+```
+
+## Target Tick Cycle (with OrderManager)
+
+```
+Coinshort.tick(ws, books)
+  │
+  ├─ 1. underlying_price = ws.ltp.get(str(underlying_token))
   │
   ├─ 2. intents = compute_intents(state, underlying_price, books)
-  │     ├─ T1: check each leg's orders for completion
-  │     ├─ T2: check underlying vs bounds
+  │     ├─ T1: per-leg (SL, target, TTL)
+  │     ├─ T2: underlying crosses bound + leg=LONG
   │     └─ apply interlock filter
   │
   ├─ 3. for intent in intents:
   │      OrderManager.execute(intent, underlying_price)
   │        ├─ resolve symbol → strike lookup
   │        ├─ subscribe quote → ws.subscribe([token])
-  │        ├─ wait for quote → _get_quote(token, 500ms)
   │        └─ place orders → order_place(SELL) + order_place(SL)
   │
   ├─ 4. update_state(intent, result)
@@ -44,8 +65,8 @@ Coinshort.tick(ws, books)
 
 ```
 OrderManager._enter_short(strike, option_type)
-  symbol = OptionSymbol.build(strike, option_type)  # "BTC52000CE"
-  token  = OptionSymbol.get_token(symbol)
+  symbol = build_symbol(strike, option_type)
+  token  = get_token(symbol)
   ws.subscribe([token])
 
   price = wait for WS tick → timeout 500ms
