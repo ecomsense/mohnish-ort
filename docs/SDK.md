@@ -44,14 +44,14 @@ Wsocket(api_key: str | None = None, api_secret: str | None = None)
 {"12345": 50000.5, "67890": 150.0}
 ```
 
-## Order Format (Books.orders)
+## Order Format (Broker.orders)
 
 ```json
 {"order_id": "123", "status": "COMPLETE", "symbol": "BTC50000CE",
  "quantity": 1, "side": "SELL", "average_price": 150.0}
 ```
 
-## Position Format (Books.positions)
+## Position Format (Broker.positions)
 
 ```json
 {"symbol": "BTC50000CE", "quantity": -1, "unrealised": 50.0, "m2m": 0.0}

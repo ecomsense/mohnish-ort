@@ -1,6 +1,5 @@
 from sdk.symbol import OptionSymbol
 from sdk.helper import RestApi
-from sdk.books import Books
 from sdk.models import Calls, Puts, Options, LegState
 from constants import get_logger
 from broker_ai.delta.wsocket import Wsocket
@@ -100,6 +99,13 @@ class Coinshort:
         except Exception as e:
             log.error(f"Error loading state: {e}")
 
+    def _is_order_complete(self, order_id: str) -> bool:
+        done = {"COMPLETE", "FILLED"}
+        for o in self.api.api().orders:
+            if o.get("order_id") == order_id and o.get("status") in done:
+                return True
+        return False
+
     def get_ltp(self, ws: Wsocket, instrument_token: int, tradingsymbol: str) -> float:
         price = ws.ltp.get(str(instrument_token))
         if price is not None:
@@ -111,7 +117,7 @@ class Coinshort:
         log.info("Executing Initial T1 Neutral Entry")
         # stub - will implement fully
 
-    def tick(self, ws: Wsocket, books: Books) -> None:
+    def tick(self, ws: Wsocket) -> None:
         try:
             bn_ltp = self.get_ltp(ws, self.symbols.instrument_token, self.symbols.tradingsymbol)
             if bn_ltp == 0:
@@ -119,7 +125,7 @@ class Coinshort:
 
             for opt in [self.ce, self.pe]:
                 if opt.status == LegState.SHORT:
-                    if books.is_order_complete(opt.buy_id):
+                    if self._is_order_complete(opt.buy_id):
                         log.info(f"{opt.tradingsymbol} SAR hit. Status flipping to LONG.")
                         opt.status = LegState.LONG
                         opt.entry_time = pendulum.now()
@@ -154,5 +160,5 @@ class Coinshort:
     def t_lower_protocol(self, ws: Wsocket) -> None:
         pass
 
-    def cleanup(self, books: Books) -> None:
+    def cleanup(self) -> None:
         log.info("Coinshort Strategy cleanup")

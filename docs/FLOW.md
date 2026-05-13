@@ -12,18 +12,17 @@ main.py
   └─ Engine([Coinshort]).run()
 
 Engine.run()
-  ├─ Books() ← wraps broker API
   ├─ Wsocket(api_key, api_secret) ← connects to Delta Exchange WS
   └─ while not stop:
        for each strategy:
-         strategy.tick(ws, books)
+         strategy.tick(ws)
        blink()
 ```
 
 ## Tick Cycle (current — stubs)
 
 ```
-Coinshort.tick(ws, books)
+Coinshort.tick(ws)
   │
   ├─ 1. bn_ltp = ws.ltp.get(str(underlying_token))
   │      if bn_ltp == 0: return
@@ -41,7 +40,7 @@ Coinshort.tick(ws, books)
 ## Target Tick Cycle (with OrderManager)
 
 ```
-Coinshort.tick(ws, books)
+Coinshort.tick(ws)
   │
   ├─ 1. underlying_price = ws.ltp.get(str(underlying_token))
   │

@@ -80,18 +80,11 @@ class ExecutionResult:
 ```python
 class Coinshort:
     def __init__(self, config: dict, symbols: OptionSymbol, api: RestApi) -> None
-    def tick(self, ws: Wsocket, books: Books) -> None
-    def cleanup(self, books: Books) -> None
+    def tick(self, ws: Wsocket) -> None
+    def cleanup(self) -> None
 
 class OrderManager:   # target — not yet implemented
     def execute(self, intent: Intent, underlying_price: float) -> ExecutionResult
-
-class Books:
-    @property
-    def positions(self) -> List[Dict]
-    @property
-    def orders(self) -> List[Dict]
-    def is_complete(self, order_id: str) -> bool
 
 class Wsocket:
     @property
