@@ -11,9 +11,9 @@ O_FUTL = Fileutils()
 S_DATA = "../data/"
 
 
-def dict_from_yml(key_to_search, value_to_match):
+def dict_from_yml(key_to_search: str, value_to_match: str) -> dict | None:
     try:
-        dct = {}
+        dct: dict = {}
         sym_from_yml = O_FUTL.get_lst_fm_yml(S_DATA + "symbols.yml")
         for _, dct in sym_from_yml.items():
             if isinstance(dct, dict) and dct[key_to_search] == value_to_match:
@@ -23,6 +23,7 @@ def dict_from_yml(key_to_search, value_to_match):
     except Exception as e:
         print(f"dict from yml error: {e}")
         print_exc()
+        return None
 
 
 def retry_until_not_none(func):

@@ -2,8 +2,10 @@ from pprint import pprint
 from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
-from constants import O_FUTL, S_DATA
+from constants import O_FUTL, S_DATA, get_logger
 from sdk.symbol import OptionSymbol
+
+log = get_logger(__name__)
 
 F_SIGNAL = S_DATA + "signals.csv"
 
@@ -32,7 +34,7 @@ def read_supp_and_res(logging, **kwargs):
                     sr["instrument_token"] = tokens[0]["instrument_token"]
         return srs
     except Exception as e:
-        logging.warning(f"{e} reading srs")
+        log.warning(f"{e} reading srs")
         return []
 
 def pfx_and_sfx(lst_of_dct: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

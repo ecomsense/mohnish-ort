@@ -1,6 +1,7 @@
 from os import path
 from toolkit.fileutils import Fileutils
-from toolkit.logger import Logger
+from toolkit.async_logger import AsyncLogger
+import logging as _logging
 import yaml
 
 O_FUTL = Fileutils()
@@ -14,19 +15,14 @@ def ensure_paths():
     if not O_FUTL.is_file_exists(S_LOG):
         print("creating data dir")
         O_FUTL.add_path(S_LOG)
-    elif O_FUTL.is_file_not_2day(S_LOG):
-        O_FUTL.nuke_file(S_LOG)
 
-ensure_paths()
-
-def load_yml(file_path: str):
+def load_yml(file_path: str) -> dict:
     if not path.exists(file_path):
         return {}
     with open(file_path, "r") as f:
         return yaml.safe_load(f) or {}
 
-# Load credentials
-def get_credentials():
+def get_credentials() -> dict:
     parent = path.dirname(path.abspath(__file__))
     grand_parent = path.dirname(parent)
     folder_name = path.basename(grand_parent)
@@ -35,4 +31,25 @@ def get_credentials():
     return load_yml(cred_path)
 
 CNFG = {**load_yml(S_SETTINGS), **get_credentials()}
-logging = Logger(CNFG.get("log", {}).get("level", 30), S_LOG) if CNFG.get("log", {}).get("show", True) else Logger(30)
+
+_log_initialized = False
+
+def init_logging() -> None:
+    global _log_initialized
+    _log_cfg = CNFG.get("log", {})
+    level = _log_cfg.get("level", _logging.INFO)
+    show = _log_cfg.get("show", True)
+    _logger = AsyncLogger(
+        level=level,
+        log_file=None if show else S_LOG,
+        use_journal=False,
+    )
+    _logger.start()
+    if _logger._listener is None:
+        raise RuntimeError("AsyncLogger failed to start - app cannot continue")
+    _log_initialized = True
+
+def get_logger(name: str | None = None) -> _logging.Logger:
+    if not _log_initialized:
+        raise RuntimeError("init_logging() must be called before get_logger()")
+    return _logging.getLogger(name)

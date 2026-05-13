@@ -52,12 +52,40 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ## Known Issues
 
+### Implement (stubs)
+
 - [ ] Delta.initial_entry() is `pass`
-- [ ] TTL/OOB logic stubbed
-- [ ] T2 protocols not ported to tick pattern
-- [ ] cleanup() stubbed
+- [ ] TTL/OOB logic in tick() stubbed
+- [ ] T2 protocols (t_upper/lower) not ported to tick pattern
+- [ ] cleanup() is stub
 - [ ] No OrderManager separation
-- [ ] State uses YAML, should be JSON
 - [ ] Intent protocol not in code
 - [ ] Interlock rules not implemented
-- [ ] No unit tests
+
+### Bugs
+
+- [ ] B1: `sdk/helper.py` — `Fake.__init__` references `self.cols` but never defines it. Crashes on `order_place`.
+- [ ] B2: `sdk/wserver.py:30` — `instrument_token or d` fallback breaks when token is `0` (falsy).
+- [ ] B3: `strategies/delta.py:139` — `set_bounds` accesses `buy_params["price"]` without key check. May KeyError.
+
+### Design
+
+- [ ] D1: Delta uses magic integers for status (`-1`,`0`,`1`). Should be `LegState` enum.
+- [ ] D2: `sdk/wserver.py` `_on_ticks` callback is empty — registered but does nothing.
+- [ ] D3: `sdk/signals.py` SR-level functions (`read_supp_and_res`, `pfx_and_sfx`, `find_band`) are dead code.
+- [ ] D4: `pyproject.toml` lists `pyopenssl`, `setuptools`, `wheel` as runtime deps — build tools only.
+- [ ] D5: Delta reads directly from global `CNFG` — no DI, hard to unit test.
+
+### Code Quality
+
+- [ ] Q1: `sdk/helper.py` — `log = get_logger(__name__)` before `from sdk.models import Order`. Non-standard import order.
+- [ ] Q2: `ensure_paths()` creates log dir but not `S_DATA` for state files.
+- [ ] Q3: `sdk/books.py:29` — `is_order_complete` hardcodes `"COMPLETE"` string. Broker-dependent.
+- [ ] Q4: `core/build.py` — `symbol_settings` variable assigned but never passed to Delta.
+
+### Done
+
+- [x] State YAML → JSON
+- [x] Logger init at import time (moved to `main.py`)
+- [x] Logger crash on failure (no silent fallback)
+- [x] `show` semantics (true=console, false=file)

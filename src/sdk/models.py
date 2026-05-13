@@ -1,3 +1,4 @@
+from typing import Any
 from sdk.utils import dict_from_yml
 
 
@@ -11,16 +12,16 @@ def read_exchange_from_symbol_yml(strategy_settings):
 
 
 class Options:
-    def __init__(self):
-        self.status = 0
-        self.buy_id = 0
-        self.buy_params = {}
-        self.short_id = 0
-        self.short_params = {}
-        self.tradingsymbol = ""
-        self.instrument_token = 0
-        self.bounds = []
-        self.entry_time = None
+    def __init__(self) -> None:
+        self.status: int = 0
+        self.buy_id: str | int = 0
+        self.buy_params: dict[str, Any] = {}
+        self.short_id: str | int = 0
+        self.short_params: dict[str, Any] = {}
+        self.tradingsymbol: str = ""
+        self.instrument_token: int = 0
+        self.bounds: list[Any] = []
+        self.entry_time: Any = None
 
 
 class Calls(Options):

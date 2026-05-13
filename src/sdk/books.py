@@ -1,6 +1,8 @@
 from typing import Dict, Any, List
 from sdk.helper import RestApi
-from constants import logging
+from constants import get_logger
+
+log = get_logger(__name__)
 
 class Books:
     def __init__(self):
@@ -11,7 +13,7 @@ class Books:
         try:
             return self.api.positions
         except Exception as e:
-            logging.error(f"Books.positions error: {e}")
+            log.error(f"Books.positions error: {e}")
             return []
 
     @property
@@ -19,7 +21,7 @@ class Books:
         try:
             return self.api.orders
         except Exception as e:
-            logging.error(f"Books.orders error: {e}")
+            log.error(f"Books.orders error: {e}")
             return []
 
     def is_order_complete(self, order_id: str) -> bool:

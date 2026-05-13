@@ -1,13 +1,16 @@
-from constants import CNFG, logging
+from constants import CNFG, ensure_paths, init_logging, get_logger
 from core.build import Builder
 from core.engine import Engine
 from toolkit.kokoo import is_time_past, blink
 import traceback
 
-def root():
+def root() -> None:
     try:
-        logging.info("HAPPY TRADING - DELTA STRATEGY (SUPER-AI PATTERN)")
-        
+        ensure_paths()
+        init_logging()
+        log = get_logger(__name__)
+        log.info("HAPPY TRADING - DELTA STRATEGY (SUPER-AI PATTERN)")
+
         entry_time: str = CNFG.get("program", {}).get("start", "09:15")
         
         while not is_time_past(entry_time):
@@ -18,7 +21,7 @@ def root():
         if strategies:
             Engine(strategies).run()
         else:
-            logging.error("No strategies built. Exiting.")
+            log.error("No strategies built. Exiting.")
 
     except Exception as e:
         print(f"root error: {e}")

@@ -1,67 +1,47 @@
 from traceback import print_exc
-from constants import CNFG, logging
-from core.models import Order
+from constants import CNFG, get_logger
+from sdk.models import Order
+from broker_ai.fake.fake import Fake
 
-def get_delta_india():
+log = get_logger(__name__)
+
+
+def get_broker() -> Fake:
     try:
-        from broker_ai.broker import BrokerAI
-        broker = BrokerAI(
-            userid=CNFG.get("userid"),
-            password=CNFG.get("password"),
-            totp=CNFG.get("totp"),
-            api_key=CNFG.get("api_key"),
-            secret=CNFG.get("secret"),
-            logging=logging
-        )
+        broker = Fake(**CNFG)
         if broker.authenticate():
             return broker
-        else:
-            raise Exception("unable to authenticate with delta-india via broker-ai")
+        raise Exception("unable to authenticate")
     except Exception as e:
-        logging.error(f"unable to create delta-india object {e}")
+        log.error(f"unable to create broker object {e}")
         print_exc()
-        return None
+        raise
 
-def login():
-    broker = CNFG.get("broker", "bypass")
-    if broker == "delta-india" or broker == "bypass":
-        return get_delta_india()
-    else:
-        return get_delta_india()
 
 class RestApi:
-    api_object = None
+    api_object: Fake | None = None
 
     @classmethod
-    def api(cls):
+    def api(cls) -> Fake:
         if cls.api_object is None:
-            cls.api_object = login()
+            cls.api_object = get_broker()
         return cls.api_object
 
-    def __init__(self, initial_quantity):
+    def __init__(self, initial_quantity: int) -> None:
         Order.set_quantity(initial_quantity)
         RestApi.api()
 
-    def cover_and_buy(self, kwargs):
-        try:
-            logging.warning("MODIFYING stop order that is not complete")
-            kwargs["order_type"] = "MARKET"
-            kwargs["price"] = 0.0
-            return self.api().order_modify(kwargs)
-        except Exception as e:
-            logging.error(f"exit: {e}")
-            print_exc()
-
-    def enter(self, kwargs):
+    def enter(self, kwargs: dict) -> str:
         try:
             params = Order().to_dict(CNFG.get("strategy", {}))
             params.update(kwargs)
             return self.api().order_place(**params)
         except Exception as e:
-            logging.error(f"enter: {e}")
+            log.error(f"enter: {e}")
             print_exc()
+            return ""
 
-    def find_fillprice_from_order_id(self, order_id):
+    def find_fillprice_from_order_id(self, order_id: str) -> float:
         try:
             lst_of_trades = self.api().trades
             lst_of_average_prices = [
@@ -74,4 +54,5 @@ class RestApi:
             return 0.0
         except Exception as e:
             print_exc()
-            logging.error(f"{e} while find fill price from trade id")
+            log.error(f"{e} while find fill price from trade id")
+            return 0.0

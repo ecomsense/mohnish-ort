@@ -1,7 +1,9 @@
 from traceback import print_exc
 from typing import Any, Dict, List
 import pandas as pd
-from constants import O_FUTL, S_DATA, logging
+from constants import O_FUTL, S_DATA, get_logger
+
+log = get_logger(__name__)
 
 def get_symbols(exchange: str) -> List[Dict[str, Any]]:
     try:
@@ -21,7 +23,7 @@ def get_symbols(exchange: str) -> List[Dict[str, Any]]:
         df = df.dropna(axis=1, how="any")
         return df.to_dict(orient="records")
     except Exception as e:
-        logging.error(f"get_symbols error: {e}")
+        log.error(f"get_symbols error: {e}")
         print_exc()
         return []
 
@@ -35,12 +37,12 @@ def dump():
                 sym_from_json = get_symbols(exchange)
                 O_FUTL.write_file(exchange_file, sym_from_json)
     except Exception as e:
-        logging.error(f"dump error: {e}")
+        log.error(f"dump error: {e}")
         print_exc()
 
 class OptionSymbol:
     def __init__(self, **kwargs):
-        logging.debug("initializing OptionSymbol")
+        log.debug("initializing OptionSymbol")
         for key, value in kwargs.items():
             setattr(self, key, value)
         
@@ -52,7 +54,7 @@ class OptionSymbol:
                 symbols = [symbols]
             return [s for s in self.symbols_from_json if s["tradingsymbol"] in symbols]
         except Exception as e:
-            logging.error(f"tokens from symbols error: {e}")
+            log.error(f"tokens from symbols error: {e}")
             print_exc()
             return []
 
@@ -60,7 +62,7 @@ class OptionSymbol:
         try:
             return round(ltp / self.diff) * self.diff
         except Exception as e:
-            logging.error(f"calc atm error: {e}")
+            log.error(f"calc atm error: {e}")
             print_exc()
             return 0
 
@@ -78,7 +80,7 @@ class OptionSymbol:
                 return self.expiry_date
             return None
         except Exception as e:
-            logging.error(f"get_expiry error: {e}")
+            log.error(f"get_expiry error: {e}")
             print_exc()
             return None
 
@@ -91,7 +93,7 @@ class OptionSymbol:
         # Verify they exist in master
         tokens = self.tokens_from_symbols([ce_symbol, pe_symbol])
         if len(tokens) < 2:
-            logging.error(f"Option symbols {ce_symbol} or {pe_symbol} not found in master")
+            log.error(f"Option symbols {ce_symbol} or {pe_symbol} not found in master")
             # Fallback to searching if naming convention differs
             # (Keeping logic from original Symbols class)
             # ...

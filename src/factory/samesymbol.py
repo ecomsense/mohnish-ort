@@ -1,16 +1,17 @@
 from api import Helper
 from models import Calls, Puts
 from signals import (
-    check_any_out_of_bounds_np,
     find_band,
     unify_dict,
 )
 from symbols import Symbols
 from wsocket import Wsocket
 from utils import retry_until_not_none
-from constants import logging, O_SETG
+from constants import get_logger, O_SETG
 from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
+
+log = get_logger(__name__)
 
 
 class Oneside:
@@ -24,13 +25,13 @@ class Oneside:
         self.help = Helper(settings["quantity"])
         self.ce_or_pe = Calls() if ce_or_pe == "call" else Puts()
 
-        logging.debug("subscribing index from symbols yml automtically")
+        log.debug("subscribing index from symbols yml automtically")
         self.ws: object = Wsocket()
         self.quotes = False
         while not self.quotes or not any(self.quotes):
             self.quotes = self.ws.ltp()
 
-        logging.debug("decipher ltp from websocket response")
+        log.debug("decipher ltp from websocket response")
 
         # build option chain
         bn_ltp = self.ltp_from_ws_response(
@@ -77,8 +78,8 @@ class Oneside:
             }
             self.ce_or_pe.short_id = self.help.enter(params)
             self.ce_or_pe.short_params = params
-            logging.info(f"short_id: {self.ce_or_pe.short_id}")
-            logging.debug(f"short params: {self.ce_or_pe.short_params}")
+            log.info(f"short_id: {self.ce_or_pe.short_id}")
+            log.debug(f"short params: {self.ce_or_pe.short_params}")
 
             params["side"] = "BUY"
             params["order_type"] = "SL"
@@ -89,10 +90,10 @@ class Oneside:
 
             self.ce_or_pe.buy_id = self.help.enter(params)
             self.ce_or_pe.buy_params = params
-            logging.info(f"buy_id: {self.ce_or_pe.buy_id}")
-            logging.debug(f"buy params: {self.ce_or_pe.buy_params}")
+            log.info(f"buy_id: {self.ce_or_pe.buy_id}")
+            log.debug(f"buy params: {self.ce_or_pe.buy_params}")
         except Exception as e:
-            logging.error(f"short error: {e}")
+            log.error(f"short error: {e}")
             print_exc()
 
     def is_order_complete(self, subset):
@@ -120,7 +121,7 @@ class Oneside:
                     flag = True
                     break
         except Exception as e:
-            logging.info(f" is_order_complete error: {e}")
+            log.info(f" is_order_complete error: {e}")
         finally:
             return flag
 
@@ -131,7 +132,7 @@ class Oneside:
         median = self.ce_or_pe.buy_params["last_price"]
         lst_of_bands.append((median - self.stop_loss, median + self.target))
         lst_of_prices.append(median)
-        logging.info("setting bounds", lst_of_bands, lst_of_prices)
+        log.info("setting bounds", lst_of_bands, lst_of_prices)
         self.ce_or_pe.bounds = lst_of_bands, lst_of_prices
 
     def is_price(self, above_or_below="above"):
@@ -140,13 +141,13 @@ class Oneside:
                 self.ce_or_pe.buy_params["last_price"]
                 > self.ce_or_pe.buy_params["trigger_price"]
             ):
-                logging.info(
+                log.info(
                     f"price above buy order {self.ce_or_pe.buy_params['trigger_price']}"
                 )
                 return True
         else:
             if self.ce_or_pe.short_params["last_price"] < self.line:
-                logging.info(
+                log.info(
                     f"{self.ce_or_pe.short_params['last_price']} is below base price {self.line}"
                 )
                 return True
@@ -174,11 +175,11 @@ class Oneside:
                         self.ce_or_pe.status = 0
                     ## status is a fresh buy
                 elif self.ce_or_pe.status == 0 and self.is_price("below"):
-                    logging.info({self.ce_or_pe.tradingsymbol: self.ce_or_pe.status})
+                    log.info({self.ce_or_pe.tradingsymbol: self.ce_or_pe.status})
                     # short new position
                     self.short()
                     self.ce_or_pe.status = -1
-                    logging.info({self.ce_or_pe.tradingsymbol: self.ce_or_pe.status})
+                    log.info({self.ce_or_pe.tradingsymbol: self.ce_or_pe.status})
                 # print(self.help.api().positions)
                 blink()
                 print(vars(self.ce_or_pe))
@@ -192,7 +193,7 @@ class Oneside:
                             )
                             self.help.api().order_cancel(**params)
                     except Exception as e:
-                        logging.error(f"order {order} cancel error: {e}")
+                        log.error(f"order {order} cancel error: {e}")
                 lst_of_pos = self.help.api().positions
                 for pos in lst_of_pos:
                     if pos["quantity"] != 0:
@@ -212,12 +213,12 @@ class Oneside:
                             tag="exit",
                             last_price=last_price,
                         )
-                        logging.info(args)
+                        log.info(args)
                         resp = self.help.enter(args)
-                        logging.info(f"exit: {resp}")
+                        log.info(f"exit: {resp}")
                 # cancel orders
         except Exception as e:
-            logging.error(f"run error: {e}")
+            log.error(f"run error: {e}")
             print_exc()
             timer(5)
             print("TRYING TO RECOVER")
@@ -228,7 +229,7 @@ class Oneside:
 
 if __name__ == "__main__":
     print("test")
-    from constants import O_SETG, logging
+    from constants import O_SETG, get_logger
     from symbols import dump
     from utils import dict_from_yml
 
