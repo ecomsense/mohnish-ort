@@ -8,22 +8,18 @@ from constants import get_logger
 log = get_logger(__name__)
 
 class Builder:
-    def __init__(self) -> None:
-        self.strategies: list[Coinshort] = []
-
     def build(self, config: dict, symbols: Symbol, api: RestApi,
-              ws: Wsocket, underlying_token: int, underlying_symbol: str) -> list[Coinshort]:
+              ws: Wsocket, underlying_token: int, underlying_symbol: str) -> Coinshort | None:
         try:
             om = OrderManager(ws=ws, symbols=symbols, api=api, config=config)
-            self.strategies.append(Coinshort(
+            return Coinshort(
                 config=config,
                 symbols=symbols,
                 api=api,
                 om=om,
                 underlying_token=underlying_token,
                 underlying_symbol=underlying_symbol,
-            ))
-            return self.strategies
+            )
         except Exception as e:
             log.error(f"Builder.build error: {e}")
-            return []
+            return None

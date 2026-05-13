@@ -24,7 +24,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 └──────┬──────┘
        │
 ┌──────▼──────┐
-│   Engine    │  while not stop: s.tick(ws, books)
+│   Engine    │  while not stop: strategy.tick(ws)
 └──────┬──────┘
        │
 ┌──────▼──────────┐
@@ -55,7 +55,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [ ] TTL/OOB logic in tick() stubbed
 - [ ] T2 protocols (t_upper/lower) not ported to tick pattern
 - [ ] cleanup() is stub
-- [ ] No OrderManager separation
 - [ ] Intent protocol not in code
 - [ ] Interlock rules not implemented
 
@@ -80,3 +79,4 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [x] `show` semantics (true=console, false=file)
 - [x] Websocket moved to `broker_ai.delta.wsocket.Wsocket`
 - [x] DI: Coinshort receives config + deps via constructor (Builder builds them)
+- [x] OrderManager — resolves symbols, subscribes quotes, places orders

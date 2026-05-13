@@ -36,13 +36,13 @@ def root() -> None:
         underlying_token = int(base.get("instrument_token", 0))
         underlying_symbol = base.get("tradingsymbol", "")
 
-        strategies = Builder().build(config, symbols, api, ws,
-                                     underlying_token, underlying_symbol)
-        if strategies:
+        strategy = Builder().build(config, symbols, api, ws,
+                                   underlying_token, underlying_symbol)
+        if strategy:
             stop_time = CNFG.get("program", {}).get("stop", "15:30")
-            Engine(strategies, ws, [str(underlying_token)], stop_time).run()
+            Engine(strategy, ws, [str(underlying_token)], stop_time).run()
         else:
-            log.error("No strategies built. Exiting.")
+            log.error("No strategy built. Exiting.")
 
     except Exception as e:
         print(f"root error: {e}")
