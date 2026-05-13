@@ -61,7 +61,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ### Code Quality
 
 - [ ] Q2: `ensure_paths()` creates log dir but not `S_DATA` for state files.
-- [ ] Q3: `sdk/books.py:29` — `is_order_complete` hardcodes `"COMPLETE"` string. Broker-dependent.
 
 ### Done
 

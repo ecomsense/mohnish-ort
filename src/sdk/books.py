@@ -25,8 +25,9 @@ class Books:
             return []
 
     def is_order_complete(self, order_id: str) -> bool:
+        done = {"COMPLETE", "FILLED"}
         for o in self.orders:
-            if o.get("order_id") == order_id and o.get("status") == "COMPLETE":
+            if o.get("order_id") == order_id and o.get("status") in done:
                 return True
         return False
 
