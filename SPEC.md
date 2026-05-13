@@ -60,7 +60,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ### Code Quality
 
-- [ ] Q1: `sdk/helper.py` — `log = get_logger(__name__)` before `from sdk.models import Order`. Non-standard import order.
 - [ ] Q2: `ensure_paths()` creates log dir but not `S_DATA` for state files.
 - [ ] Q3: `sdk/books.py:29` — `is_order_complete` hardcodes `"COMPLETE"` string. Broker-dependent.
 
