@@ -2,10 +2,9 @@ from sdk.symbol import OptionSymbol
 from sdk.helper import RestApi
 from sdk.books import Books
 from sdk.models import Calls, Puts, Options, LegState
-from constants import CNFG, get_logger, S_DATA
+from constants import get_logger
 from broker_ai.delta.wsocket import Wsocket
 import pendulum
-import os
 import json
 from traceback import print_exc
 from copy import deepcopy
@@ -14,15 +13,11 @@ log = get_logger(__name__)
 
 
 class Coinshort:
-    def __init__(self) -> None:
+    def __init__(self, config: dict, symbols: OptionSymbol, api: RestApi) -> None:
         log.info("Initializing Coinshort Strategy (T1)")
-        self.strategy_settings: dict = CNFG.get("strategy", {})
-
-        symbol_settings: dict = CNFG.get("base_instrument", {})
-        self.symbols: OptionSymbol = OptionSymbol(**symbol_settings)
-        self.symbols.get_expiry(self.strategy_settings.get("expiry_offset", 0))
-
-        self.api: RestApi = RestApi(self.strategy_settings.get("quantity", 1))
+        self.config = config
+        self.symbols = symbols
+        self.api = api
 
         self.tier: int = 1
         self.upper_bound: float = 0
@@ -36,6 +31,18 @@ class Coinshort:
 
         if self.upper_bound == 0:
             self.initial_entry()
+
+    @property
+    def quantity(self) -> int:
+        return self.config.get("quantity", 1)
+
+    @property
+    def stop_loss(self) -> float:
+        return self.config["stop_loss"]
+
+    @property
+    def target(self) -> float:
+        return self.config["target"]
 
     def save_state(self) -> None:
         try:
@@ -55,15 +62,19 @@ class Coinshort:
                 "ce": opt_to_dict(self.ce),
                 "pe": opt_to_dict(self.pe)
             }
+            from constants import S_DATA
+            import os
             os.makedirs(S_DATA, exist_ok=True)
-            with open(os.path.join(S_DATA, "delta_state.json"), "w") as f:
+            with open(os.path.join(S_DATA, "coinshort_state.json"), "w") as f:
                 json.dump(state, f, indent=2)
         except Exception as e:
             log.error(f"Error saving state: {e}")
 
     def load_state(self) -> None:
         try:
-            state_path = os.path.join(S_DATA, "delta_state.json")
+            from constants import S_DATA
+            import os
+            state_path = os.path.join(S_DATA, "coinshort_state.json")
             if not os.path.exists(state_path):
                 return
             with open(state_path, "r") as f:
@@ -134,17 +145,14 @@ class Coinshort:
 
     def set_bounds(self, opt: Options) -> None:
         median = opt.buy_params["price"]
-        lst_of_bands = (median - self.strategy_settings["stop_loss"], median + self.strategy_settings["target"])
+        lst_of_bands = (median - self.stop_loss, median + self.target)
         opt.bounds = [lst_of_bands], [median]
 
     def t_upper_protocol(self, ws: Wsocket) -> None:
-        # stub for T2 upper protocol
         pass
 
     def t_lower_protocol(self, ws: Wsocket) -> None:
-        # stub for T2 lower protocol
         pass
 
     def cleanup(self, books: Books) -> None:
         log.info("Coinshort Strategy cleanup")
-        # stub

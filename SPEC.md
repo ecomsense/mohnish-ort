@@ -58,14 +58,11 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ### Design
 
-- [ ] D3: Coinshort reads directly from global `CNFG` — no DI, hard to unit test.
-
 ### Code Quality
 
 - [ ] Q1: `sdk/helper.py` — `log = get_logger(__name__)` before `from sdk.models import Order`. Non-standard import order.
 - [ ] Q2: `ensure_paths()` creates log dir but not `S_DATA` for state files.
 - [ ] Q3: `sdk/books.py:29` — `is_order_complete` hardcodes `"COMPLETE"` string. Broker-dependent.
-- [ ] Q4: `core/build.py` — `symbol_settings` variable assigned but never passed to Coinshort.
 
 ### Done
 
@@ -74,3 +71,4 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [x] Logger crash on failure (no silent fallback)
 - [x] `show` semantics (true=console, false=file)
 - [x] Websocket moved to `broker_ai.delta.wsocket.Wsocket`
+- [x] DI: Coinshort receives config + deps via constructor (Builder builds them)

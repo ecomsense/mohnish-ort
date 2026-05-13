@@ -66,7 +66,9 @@ class ExecutionResult:
 
 ```python
 class Coinshort:
+    def __init__(self, config: dict, symbols: OptionSymbol, api: RestApi) -> None
     def tick(self, ws: Wsocket, books: Books) -> None
+    def cleanup(self, books: Books) -> None
 
 class OrderManager:
     def execute(self, intent: Intent, underlying_price: float) -> ExecutionResult
