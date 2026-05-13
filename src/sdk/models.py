@@ -1,4 +1,4 @@
-from core.utils import dict_from_yml
+from sdk.utils import dict_from_yml
 
 
 def read_exchange_from_symbol_yml(strategy_settings):

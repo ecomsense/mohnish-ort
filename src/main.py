@@ -1,34 +1,28 @@
-from traceback import print_exc
-from toolkit.kokoo import blink, is_time_past
-from core.config import get_config, load_symbols, set_logger
-from engine.symbols import dump
-from core.utils import dict_from_yml
-from strategies.delta import Delta
+from constants import CNFG, logging
+from core.build import Builder
+from core.engine import Engine
+from toolkit.kokoo import is_time_past, blink
+import traceback
 
 def root():
     try:
-        config = get_config()
-        logging = set_logger(config.log)
-        logging.info("HAPPY TRADING - DELTA STRATEGY")
+        logging.info("HAPPY TRADING - DELTA STRATEGY (SUPER-AI PATTERN)")
         
-        # download necessary masters
-        dump()
-        
-        entry_time: str = config.program.start
-        strategy_settings = config.strategy
-        
-        # Unpack settings into instance attributes
-        symbol_settings = dict_from_yml("base", strategy_settings["base"])
+        entry_time: str = CNFG.get("program", {}).get("start", "09:15")
         
         while not is_time_past(entry_time):
             print(f"z #@! zZZ sleeping till {entry_time}")
             blink()
             
-        Delta(config, symbol_settings, logging).run()
+        strategies = Builder().build()
+        if strategies:
+            Engine(strategies).run()
+        else:
+            logging.error("No strategies built. Exiting.")
 
     except Exception as e:
         print(f"root error: {e}")
-        print_exc()
+        traceback.print_exc()
 
 if __name__ == "__main__":
     root()
