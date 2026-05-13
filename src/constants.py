@@ -8,8 +8,8 @@ O_FUTL = Fileutils()
 S_DATA = "../data/"
 S_LOG = S_DATA + "log.txt"
 S_FACTORY = "../factory/"
-S_SETTINGS = S_FACTORY + "settings.yml"
-S_SYMBOLS = S_FACTORY + "symbols.yml"
+S_SETTINGS = S_DATA + "settings.yml"
+S_SYMBOLS = S_DATA + "symbols.yml"
 
 def ensure_paths():
     if not O_FUTL.is_file_exists(S_LOG):

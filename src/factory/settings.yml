@@ -1,21 +1,23 @@
 log:
-  show: True
-  level: 30
+  show: true
+  level: 20
 program:
-  start: "9:30"
-  stop: "15:00"
-trade:
-  start: "9:30"
-  stop: "15:00"
-signals:
-  exchange: BSE   # excel contain SR from this file
+  start: "9:15"
+  stop: "15:30"
+strategy_name: "Coinshort"
 strategy:
-  type: 2     # Delta Strategy
   base: BTC-DELTA
   stop_loss: 500
   target: 1000
-  ttl: 60     # Time To Live in minutes for T1 buy trades
+  ttl: 60
   quantity: 1
-  slippage: 5
-live: 1
+  slippage: 0.5
+  expiry_offset: 0
+base_instrument:
+  base: BTC
+  diff: 100
+  depth: 20
+  exchange: DELTA
+  instrument_token: 1001
+  tradingsymbol: BTC-USD
 broker: delta-india

@@ -8,6 +8,8 @@ from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
 from core.config import load_symbols
 
+O_SETG = {"program": {"stop": "15:30"}}
+
 class Oneside:
     def __init__(self, config, symbol_settings, logging, ce_or_pe="call"):
         self.config = config

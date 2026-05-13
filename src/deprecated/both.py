@@ -14,6 +14,7 @@ from traceback import print_exc
 from toolkit.kokoo import blink, is_time_past, timer
 from copy import deepcopy
 from core.config import load_symbols
+import pendulum
 
 class Both:
     def __init__(self, config, symbol_settings, logging):
