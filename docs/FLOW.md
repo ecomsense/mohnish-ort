@@ -4,19 +4,33 @@
 
 ```
 main.py
-  ├─ ensure_paths(), init_logging()
-  ├─ Builder.build()
-  │     ├─ reads config + symbols from CNFG
-  │     ├─ creates OptionSymbol, RestApi
-  │     └─ returns Coinshort(config, symbols, api)
-  └─ Engine([Coinshort]).run()
-
-Engine.run()
-  ├─ Wsocket(api_key, api_secret) ← connects to Delta Exchange WS
-  └─ while not stop:
-       for each strategy:
-         strategy.tick(ws)
-       blink()
+  ├─ ensure_paths()              # create data/ dir, copy settings if missing
+  ├─ init_logging()              # AsyncLogger (console or file)
+  ├─ wait(entry_time)            # sleep until 09:15
+  │
+  ├─ Wsocket(api_key, api_secret) → ws.connect(threaded=True)
+  │
+  ├─ config = CNFG["strategy"]   # from data/settings.yml
+  ├─ base   = CNFG["base_instrument"]
+  │
+  ├─ Symbol(exchange="DELTA", symbol="BTC", data_path=S_DATA)
+  │     ├─ _load_config()        # read delta.yaml (download_url)
+  │     └─ load()                # data/DELTA_BTC.csv or download from Delta API
+  │
+  ├─ Restapi(config["quantity"])
+  │     └─ Delta(api_key, secret) → authenticate()
+  │
+  ├─ Builder.build(config, symbols, api, ws, underlying_token, symbol)
+  │     ├─ OrderManager(ws, symbols, api, config)
+  │     └─ Coinshort(config, symbols, api, om, token, symbol)
+  │           └─ load_state()    # restore tier, bounds, legs from JSON
+  │
+  └─ Engine(strategy, ws, underlying_token).run()
+        ├─ ws.subscribe([underlying_token])
+        └─ while True:
+             price = ws.ltp.get(token)
+             strategy.tick(price)
+             blink()
 ```
 
 ## Tick Cycle (current — implemented)
@@ -42,28 +56,7 @@ Coinshort.tick(ws)
   └─ 4. save_state() → JSON to disk
 ```
 
-## Tick Cycle (aspirational — intent-based refactor)
-
-```
-Coinshort.tick(ws)
-  │
-  ├─ 1. underlying_price = ws.ltp.get(str(underlying_token))
-  │
-  ├─ 2. intents = compute_intents(state, underlying_price, books)
-  │     ├─ T1: per-leg (SL, target, TTL)
-  │     ├─ T2: underlying crosses bound + leg=LONG
-  │     └─ apply interlock filter
-  │
-  ├─ 3. for intent in intents:
-  │      OrderManager.execute(intent, underlying_price)
-  │        ├─ resolve symbol → strike lookup
-  │        ├─ subscribe quote → ws.subscribe([token])
-  │        └─ place orders → order_place(SELL) + order_place(SL)
-  │
-  ├─ 4. update_state(intent, result)
-  │
-  └─ 5. save_state() → JSON to disk
-```
+See [SPEC.md](../SPEC.md#architecture) for the full detailed architecture diagram.
 
 ## Order Placement Detail
 

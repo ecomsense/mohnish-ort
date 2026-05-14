@@ -15,21 +15,103 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ## Architecture
 
 ```
-┌─────────────┐
-│   main.py   │  sleep → build → run
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│   Builder   │  Coinshort()
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│   Engine    │  while not stop: strategy.tick(ws)
-└──────┬──────┘
-       │
-┌──────▼──────────┐
-│   Coinshort     │  read state → decide intents → execute
-└─────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                              main.py                                       │
+│  ensure_paths() → init_logging() → wait(entry_time)                        │
+│  Wsocket() → Symbol() → Restapi() → Builder.build() → Engine().run()      │
+└──────────────────────────┬─────────────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼─────────────────────────────────────────────────┐
+│  Builder.build()                                                           │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │  OrderManager(ws, symbols, api, config) → Coinshort(config, ...)     │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────┬─────────────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼─────────────────────────────────────────────────┐
+│  Engine.run()                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │  ws.subscribe([underlying_token])                                    │  │
+│  │  while True:                                                         │  │
+│  │    price = ws.ltp.get(token, 0.0)                                    │  │
+│  │    strategy.tick(price)                                              │  │
+│  │    blink()                                                           │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────┬─────────────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼─────────────────────────────────────────────────┐
+│  Coinshort.tick(underlying_price)                                          │
+│                                                                           │
+│  ┌─ ENTRY PHASE (bounds empty) ────────────────────────────────────────┐  │
+│  │  if _entry_ce_id is None:  _enter_straddle(price)                   │  │
+│  │    ├─ OM.enter_short(price, "CE") → store ce_id, pe_id             │  │
+│  │    └─ OM.enter_short(price, "PE")                                   │  │
+│  │  elif both orders complete: _finalize_entry(price)                   │  │
+│  │    ├─ get fill prices → calc premium                                │  │
+│  │    ├─ bounds = [price+premium, price-premium]                       │  │
+│  │    └─ ce.status=SHORT, pe.status=SHORT                              │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+│  ┌─ LEG MANAGEMENT (bounds exist) ─────────────────────────────────────┐  │
+│  │  for each leg (CE, PE): OM.manage_leg(opt, price)                   │  │
+│  │                                                                      │  │
+│  │  OrderManager.manage_leg(opt, price):                                │  │
+│  │    opt_price = ws.ltp.get(token)                                     │  │
+│  │                                                                      │  │
+│  │    SHORT ── SL hit? ──→ LONG (place sell SL at entry - stop_loss)   │  │
+│  │         no ───────────────────────────────────► stay SHORT           │  │
+│  │                                                                      │  │
+│  │    LONG ── target hit? ──→ modify SL→MARKET, enter_short(same type) │  │
+│  │         ├── TTL + profit? ──→ same shift-strike flow                │  │
+│  │         └── SL hit? ──→ flip to SHORT, enter_short(same type)       │  │
+│  │                                                                      │  │
+│  │    SHIFTED ── SL hit? ──→ FLAT                                      │  │
+│  │                                                                      │  │
+│  │  for each satellite:                                                 │  │
+│  │    SHIFTED + SL hit ──→ FLAT                                         │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+│  ┌─ T2 TIER PROTOCOL ──────────────────────────────────────────────────┐  │
+│  │  if price >= upper AND ce.status == LONG:                            │  │
+│  │    tier += 1                                                         │  │
+│  │    t_upper_protocol(price)                                           │  │
+│  │      ├─ skip if satellite exists for this tier                       │  │
+│  │      ├─ _close_satellite(tier - 2)                                   │  │
+│  │      ├─ OM.enter_short(price, "PE") → append to satellites[]        │  │
+│  │      └─ bounds.append([price+premium, price-premium])                │  │
+│  │                                                                      │  │
+│  │  if price <= lower AND pe.status == LONG:                            │  │
+│  │    tier += 1                                                         │  │
+│  │    t_lower_protocol(price)                                           │  │
+│  │      ├─ skip if satellite exists for this tier                       │  │
+│  │      ├─ _close_satellite(tier - 2)                                   │  │
+│  │      ├─ OM.enter_short(price, "CE") → append to satellites[]        │  │
+│  │      └─ bounds.append([price+premium, price-premium])                │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+│  ┌─ PERSISTENCE ───────────────────────────────────────────────────────┐  │
+│  │  save_state() → coinshort_state.json (tier, bounds, premium,        │  │
+│  │    ce/pe state, satellites, entry_time)                              │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼─────────────────────────────────────────────────┐
+│  OrderManager.enter_short(underlying_price, option_type)                   │
+│                                                                           │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │  row = symbols.filter_by_moneyness(price, 0, option_type)            │  │
+│  │  token = row["ws_token"]                                             │  │
+│  │  ws.subscribe([token])                                               │  │
+│  │  price = ws.ltp.get(token)  ← wait for quote                         │  │
+│  │                                                                      │  │
+│  │  short_id = api.enter({symbol, side=SELL, order_type=MARKET})        │  │
+│  │  sl_id    = api.enter({symbol, side=BUY,  order_type=SL,             │  │
+│  │                         trigger_price=price+stop_loss,               │  │
+│  │                         price=price+stop_loss+slippage})             │  │
+│  │                                                                      │  │
+│  │  return {symbol, token, strike, price, short_id, sl_id}              │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Files
