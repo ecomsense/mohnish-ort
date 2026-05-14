@@ -141,9 +141,10 @@ class TestManagerT1:
         opt.buy_id = "b1"
         opt.buy_params = {"trigger_price": 50100, "price": 150.0}
         opt.tradingsymbol = "BTC-CE"
+        opt.instrument_token = 1002
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
-        om.manage_leg(opt, {})
+        om.manage_leg(opt, 50000, {"ttl": 60})
         assert opt.status == LegState.LONG
         assert opt.buy_params["price"] == 50100
         assert opt.buy_params["target"] == 50100 + om.target
@@ -153,15 +154,17 @@ class TestManagerT1:
         opt.status = LegState.SHORT
         opt.buy_id = "b1"
         opt.buy_params = {"price": 150.0}
+        opt.instrument_token = 1002
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "TRIGGER PENDING"}]
-        om.manage_leg(opt, {})
+        om.manage_leg(opt, 50000, {"ttl": 60})
         assert opt.status == LegState.SHORT
 
     def test_long_does_nothing(self, om):
         opt = Calls()
         opt.status = LegState.LONG
-        om.manage_leg(opt, {})
+        opt.instrument_token = 1002
+        om.manage_leg(opt, 50000, {"ttl": 60})
         assert opt.status == LegState.LONG
 
     def test_long_to_short_on_sl_hit(self, om):
@@ -170,11 +173,50 @@ class TestManagerT1:
         opt.buy_id = "b1"
         opt.buy_params = {"trigger_price": 49500, "price": 50100}
         opt.tradingsymbol = "BTC-CE"
+        opt.instrument_token = 1002
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
-        om.manage_leg(opt, {})
+        om.manage_leg(opt, 50000, {"ttl": 60})
         assert opt.status == LegState.SHORT
         assert "target" not in opt.buy_params
+
+    def test_long_target_hit_shifts_strike(self, om):
+        opt = Calls()
+        opt.status = LegState.LONG
+        opt.buy_params = {"target": 250, "price": 150}
+        opt.tradingsymbol = "BTC-CE"
+        opt.instrument_token = 1002
+        om.ws.ltp = {"1002": 260}
+        om.manage_leg(opt, 50000, {"ttl": 60})
+        assert opt.status == LegState.SHORT
+
+    def test_long_ttl_exit(self, om):
+        opt = Calls()
+        opt.status = LegState.LONG
+        opt.buy_params = {"target": 300, "price": 150}
+        opt.buy_id = "b1"
+        opt.tradingsymbol = "BTC-CE"
+        opt.instrument_token = 1002
+        opt.entry_time = __import__("pendulum").now().subtract(minutes=61)
+        om.ws.ltp = {"1002": 200}
+        broker = om.api.api()
+        broker.orders = [{"order_id": "b1", "status": "PENDING"}]
+        om.manage_leg(opt, 50000, {"ttl": 60})
+        assert opt.status == LegState.FLAT
+
+    def test_long_ttl_skipped_when_not_in_profit(self, om):
+        opt = Calls()
+        opt.status = LegState.LONG
+        opt.buy_params = {"target": 300, "price": 200}
+        opt.buy_id = "b1"
+        opt.tradingsymbol = "BTC-CE"
+        opt.instrument_token = 1002
+        opt.entry_time = __import__("pendulum").now().subtract(minutes=61)
+        om.ws.ltp = {"1002": 150}
+        broker = om.api.api()
+        broker.orders = [{"order_id": "b1", "status": "PENDING"}]
+        om.manage_leg(opt, 50000, {"ttl": 60})
+        assert opt.status == LegState.LONG
 
 
 class TestT2Trigger:

@@ -51,8 +51,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ### Implement (stubs)
 
-- [ ] TTL/OOB logic in tick() stubbed
-- [ ] T1 LONG leg: target exit + TTL check not implemented
 - [ ] T2 protocols (t_upper/lower + interlock) not implemented
 
 ### Bugs
@@ -77,4 +75,4 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [x] DI: Coinshort receives config + deps via constructor (Builder builds them)
 - [x] OrderManager — resolves symbols, subscribes quotes, places orders
 - [x] Delta broker wired (replaces Fake)
-- [x] T1 entry (ATM straddle + bound calculation, 16 tests)
+- [x] T1 entry + full SAR cycle (SHORT↔LONG, target exit, TTL, 20 tests)

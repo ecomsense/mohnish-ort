@@ -161,7 +161,7 @@ class Coinshort:
                 return
 
             for opt in [self.ce, self.pe]:
-                self.om.manage_leg(opt, self.config)
+                self.om.manage_leg(opt, underlying_price, self.config)
 
             if underlying_price >= self.upper_bound and self.ce.status == LegState.LONG:
                 self.tier += 1

@@ -103,7 +103,8 @@ class OrderManager:
                 return True
         return False
 
-    def manage_leg(self, opt, config: dict) -> None:
+    def manage_leg(self, opt, underlying_price: float, config: dict) -> None:
+        opt_price = self.ws.ltp.get(str(opt.instrument_token), 0.0)
         if opt.status == LegState.SHORT:
             if self.is_order_complete(opt.buy_id):
                 log.info(f"{opt.tradingsymbol} SAR hit. Flipping to LONG.")
@@ -126,15 +127,41 @@ class OrderManager:
                 })
                 opt.buy_id = sl_id
         elif opt.status == LegState.LONG:
+            target = opt.buy_params.get("target")
+            if target and opt_price >= target:
+                log.info(f"{opt.tradingsymbol} target {target} hit at {opt_price}. Shifting strike.")
+                self.exit_position(opt.instrument_token, opt.tradingsymbol)
+                option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
+                result = self.enter_short(underlying_price, option_type)
+                if "error" not in result:
+                    opt.tradingsymbol = result["symbol"]
+                    opt.instrument_token = int(result["token"])
+                    opt.short_id = result["short_id"]
+                    opt.buy_id = result["sl_id"]
+                    opt.status = LegState.SHORT
+                    opt.entry_time = None
+                    opt.buy_params = {
+                        "price": result["price"],
+                        "trigger_price": result["price"] + self.stop_loss,
+                    }
+                return
+            ttl = config.get("ttl", 0)
+            if ttl and opt.entry_time:
+                mins = (pendulum.now() - opt.entry_time).in_minutes()
+                if mins >= ttl and opt_price > opt.buy_params.get("price", 0):
+                    log.info(f"{opt.tradingsymbol} TTL {ttl}m exceeded. Exiting.")
+                    self.exit_position(opt.instrument_token, opt.tradingsymbol)
+                    opt.status = LegState.FLAT
+                    return
             if self.is_order_complete(opt.buy_id):
                 log.info(f"{opt.tradingsymbol} SAR hit. Flipping to SHORT.")
                 entry_price = opt.buy_params.get("trigger_price", 0) or 0
                 if entry_price == 0:
                     return
                 opt.status = LegState.SHORT
+                opt.buy_params.pop("target", None)
                 opt.entry_time = pendulum.now()
                 opt.buy_params["price"] = entry_price
-                opt.buy_params.pop("target", None)
                 sl_id = self.api.enter({
                     "symbol": opt.tradingsymbol,
                     "side": "BUY",
