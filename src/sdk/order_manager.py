@@ -149,9 +149,21 @@ class OrderManager:
             if ttl and opt.entry_time:
                 mins = (pendulum.now() - opt.entry_time).in_minutes()
                 if mins >= ttl and opt_price > opt.buy_params.get("price", 0):
-                    log.info(f"{opt.tradingsymbol} TTL {ttl}m exceeded. Exiting.")
+                    log.info(f"{opt.tradingsymbol} TTL {ttl}m exceeded. Shifting strike.")
                     self.exit_position(opt.instrument_token, opt.tradingsymbol)
-                    opt.status = LegState.FLAT
+                    option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
+                    result = self.enter_short(underlying_price, option_type)
+                    if "error" not in result:
+                        opt.tradingsymbol = result["symbol"]
+                        opt.instrument_token = int(result["token"])
+                        opt.short_id = result["short_id"]
+                        opt.buy_id = result["sl_id"]
+                        opt.status = LegState.SHORT
+                        opt.entry_time = None
+                        opt.buy_params = {
+                            "price": result["price"],
+                            "trigger_price": result["price"] + self.stop_loss,
+                        }
                     return
             if self.is_order_complete(opt.buy_id):
                 log.info(f"{opt.tradingsymbol} SAR hit. Flipping to SHORT.")

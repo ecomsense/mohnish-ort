@@ -202,7 +202,7 @@ class TestManagerT1:
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "PENDING"}]
         om.manage_leg(opt, 50000, {"ttl": 60})
-        assert opt.status == LegState.FLAT
+        assert opt.status == LegState.SHORT
 
     def test_long_ttl_skipped_when_not_in_profit(self, om):
         opt = Calls()
