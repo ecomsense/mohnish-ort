@@ -1,5 +1,4 @@
-from os import path
-import shutil
+import os
 from toolkit.fileutils import Fileutils
 from toolkit.async_logger import AsyncLogger
 import logging as _logging
@@ -12,32 +11,27 @@ S_FACTORY = "../factory/"
 S_SETTINGS = S_DATA + "settings.yml"
 S_SYMBOLS = S_DATA + "symbols.yml"
 
-_TEMPLATES = [
-    (S_FACTORY + "settings.yml", S_SETTINGS),
-    (S_FACTORY + "symbols.yml", S_SYMBOLS),
-]
-
 def ensure_paths():
     if not O_FUTL.is_file_exists(S_LOG):
         print("creating data dir")
         O_FUTL.add_path(S_LOG)
-    for src, dst in _TEMPLATES:
-        if not path.exists(dst) and path.exists(src):
-            shutil.copy2(src, dst)
-            print(f"copied template {src} -> {dst}")
+    for name in ("settings.yml", "symbols.yml"):
+        dst = S_DATA + name
+        if not O_FUTL.is_file_exists(dst):
+            O_FUTL.copy_file(source_dir=S_FACTORY, destination_dir=S_DATA, filename=name)
 
 def load_yml(file_path: str) -> dict:
-    if not path.exists(file_path):
+    if not os.path.exists(file_path):
         return {}
     with open(file_path, "r") as f:
         return yaml.safe_load(f) or {}
 
 def get_credentials() -> dict:
-    parent = path.dirname(path.abspath(__file__))
-    grand_parent = path.dirname(parent)
-    folder_name = path.basename(grand_parent)
+    parent = os.path.dirname(os.path.abspath(__file__))
+    grand_parent = os.path.dirname(parent)
+    folder_name = os.path.basename(grand_parent)
     cred_file_name = "-".join(reversed(folder_name.split("_"))) + ".yml"
-    cred_path = path.join(path.dirname(grand_parent), cred_file_name)
+    cred_path = os.path.join(os.path.dirname(grand_parent), cred_file_name)
     return load_yml(cred_path)
 
 CNFG = {**load_yml(S_SETTINGS), **get_credentials()}
