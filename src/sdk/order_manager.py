@@ -119,7 +119,7 @@ class OrderManager:
                     "symbol": opt.tradingsymbol,
                     "side": "SELL",
                     "order_type": "SL",
-                    "quantity": self.quantity * 2,
+                    "quantity": self.quantity,
                     "last_price": entry_price,
                     "trigger_price": entry_price - self.stop_loss,
                     "price": entry_price - self.stop_loss - self.slippage,
@@ -174,14 +174,16 @@ class OrderManager:
                 opt.buy_params.pop("target", None)
                 opt.entry_time = pendulum.now()
                 opt.buy_params["price"] = entry_price
-                sl_id = self.api.enter({
-                    "symbol": opt.tradingsymbol,
-                    "side": "BUY",
-                    "order_type": "SL",
-                    "quantity": self.quantity * 2,
-                    "last_price": entry_price,
-                    "trigger_price": entry_price + self.stop_loss,
-                    "price": entry_price + self.stop_loss + self.slippage,
-                    "tag": "stoploss_short",
-                })
-                opt.buy_id = sl_id
+                option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
+                result = self.enter_short(underlying_price, option_type)
+                if "error" not in result:
+                    opt.tradingsymbol = result["symbol"]
+                    opt.instrument_token = int(result["token"])
+                    opt.short_id = result["short_id"]
+                    opt.buy_id = result["sl_id"]
+                    opt.buy_params = {
+                        "price": result["price"],
+                        "trigger_price": result["price"] + self.stop_loss,
+                    }
+        elif opt.status == LegState.FLAT:
+            pass
