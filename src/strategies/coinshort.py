@@ -26,6 +26,8 @@ class Coinshort:
         self.ce: Calls = Calls()
         self.pe: Puts = Puts()
 
+        self._satellites: list[dict] = []
+
         self._entry_ce_id: str | None = None
         self._entry_pe_id: str | None = None
 
@@ -54,7 +56,8 @@ class Coinshort:
                     "current_premium": self.current_premium,
                 },
                 "ce": opt_to_dict(self.ce),
-                "pe": opt_to_dict(self.pe)
+                "pe": opt_to_dict(self.pe),
+                "satellites": [dict(s, status=s["status"].value) for s in self._satellites],
             }
             from constants import S_DATA
             import os
@@ -89,6 +92,9 @@ class Coinshort:
 
             dict_to_opt(self.ce, state.get("ce", {}))
             dict_to_opt(self.pe, state.get("pe", {}))
+            self._satellites = state.get("satellites", [])
+            for s in self._satellites:
+                s["status"] = LegState(s["status"])
             log.info(f"Strategy state loaded. Resuming at Tier T{self.tier}.")
         except Exception as e:
             log.error(f"Error loading state: {e}")
@@ -160,6 +166,10 @@ class Coinshort:
 
             for opt in [self.ce, self.pe]:
                 self.om.manage_leg(opt, underlying_price)
+            for sat in self._satellites:
+                if sat["status"] == LegState.SHIFTED and self.om.is_order_complete(sat["buy_id"]):
+                    log.info(f"Satellite {sat['tradingsymbol']} SL hit. Exiting.")
+                    sat["status"] = LegState.FLAT
 
             upper, lower = self.bounds[-1]
             if underlying_price >= upper and self.ce.status == LegState.LONG:
@@ -176,50 +186,56 @@ class Coinshort:
             print_exc()
 
     def t_upper_protocol(self, underlying_price: float) -> None:
-        log.info(f"T2 breach at {underlying_price}. Shifting PUT up.")
-        if self.pe.status == LegState.SHORT:
-            self.om.api.api().order_cancel(order_id=self.pe.buy_id)
+        if any(s["tier"] == self.tier for s in self._satellites):
+            return
+        log.info(f"T2 breach at {underlying_price}. Selling T{self.tier} put.")
         result = self.om.enter_short(underlying_price, "PE")
         if "error" in result:
             return
-        self.pe.tradingsymbol = result["symbol"]
-        self.pe.instrument_token = int(result["token"])
-        self.pe.short_id = result["short_id"]
-        self.pe.buy_id = result["sl_id"]
-        self.pe.status = LegState.SHIFTED
-        self.pe.entry_time = None
-        self.pe.buy_params = {
-            "price": result["price"],
-            "trigger_price": result["price"] + self.config.get("stop_loss", 500),
-        }
+        self._satellites.append({
+            "tier": self.tier,
+            "option_type": "PE",
+            "status": LegState.SHIFTED,
+            "tradingsymbol": result["symbol"],
+            "instrument_token": int(result["token"]),
+            "entry_price": result["price"],
+            "buy_id": result["sl_id"],
+            "buy_params": {
+                "price": result["price"],
+                "trigger_price": result["price"] + self.config.get("stop_loss", 500),
+            },
+        })
         self.current_premium += result["price"]
         self.bounds.append([underlying_price + self.current_premium,
                             underlying_price - self.current_premium])
         b = self.bounds[-1]
-        log.info(f"T2 complete. New bounds: [{b[1]}, {b[0]}]")
+        log.info(f"T{self.tier} put sold. New bounds: [{b[1]}, {b[0]}]")
 
     def t_lower_protocol(self, underlying_price: float) -> None:
-        log.info(f"T-2 breach at {underlying_price}. Shifting CALL down.")
-        if self.ce.status == LegState.SHORT:
-            self.om.api.api().order_cancel(order_id=self.ce.buy_id)
+        if any(s["tier"] == self.tier for s in self._satellites):
+            return
+        log.info(f"T-2 breach at {underlying_price}. Selling T{self.tier} call.")
         result = self.om.enter_short(underlying_price, "CE")
         if "error" in result:
             return
-        self.ce.tradingsymbol = result["symbol"]
-        self.ce.instrument_token = int(result["token"])
-        self.ce.short_id = result["short_id"]
-        self.ce.buy_id = result["sl_id"]
-        self.ce.status = LegState.SHIFTED
-        self.ce.entry_time = None
-        self.ce.buy_params = {
-            "price": result["price"],
-            "trigger_price": result["price"] + self.config.get("stop_loss", 500),
-        }
+        self._satellites.append({
+            "tier": self.tier,
+            "option_type": "CE",
+            "status": LegState.SHIFTED,
+            "tradingsymbol": result["symbol"],
+            "instrument_token": int(result["token"]),
+            "entry_price": result["price"],
+            "buy_id": result["sl_id"],
+            "buy_params": {
+                "price": result["price"],
+                "trigger_price": result["price"] + self.config.get("stop_loss", 500),
+            },
+        })
         self.current_premium += result["price"]
         self.bounds.append([underlying_price + self.current_premium,
                             underlying_price - self.current_premium])
         b = self.bounds[-1]
-        log.info(f"T-2 complete. New bounds: [{b[1]}, {b[0]}]")
+        log.info(f"T{self.tier} call sold. New bounds: [{b[1]}, {b[0]}]")
 
     def cleanup(self) -> None:
         log.info("Coinshort Strategy cleanup")

@@ -298,7 +298,9 @@ class TestT2Protocol:
         assert cs.current_premium == 1200
         assert cs.bounds[-1][0] == 53200
         assert cs.bounds[-1][1] == 50800
-        assert cs.pe.status == LegState.SHIFTED
+        assert len(cs._satellites) == 1
+        assert cs._satellites[0]["tier"] == 2
+        assert cs._satellites[0]["option_type"] == "PE"
 
     def test_lower_shifts_call_and_recalculates_bounds(self, cs):
         cs.bounds = [[51000, 49000]]
@@ -318,4 +320,6 @@ class TestT2Protocol:
         assert cs.current_premium == 1150
         assert cs.bounds[-1][0] == 49650
         assert cs.bounds[-1][1] == 47350
-        assert cs.ce.status == LegState.SHIFTED
+        assert len(cs._satellites) == 1
+        assert cs._satellites[0]["tier"] == 2
+        assert cs._satellites[0]["option_type"] == "CE"
