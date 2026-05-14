@@ -1,13 +1,18 @@
 from traceback import print_exc
 from constants import CNFG, get_logger
 from sdk.models import Order
+from broker_ai.delta import api_helper
 from broker_ai.delta.delta import Delta
 
 log = get_logger(__name__)
 
+SANDBOX_URL = "https://api-testnet.india.delta.exchange"
+
 
 def get_broker() -> Delta:
     try:
+        if CNFG.get("broker") == "delta-sandbox":
+            api_helper.BASE_URL = SANDBOX_URL
         broker = Delta(
             api_key=CNFG.get("api_key"),
             api_secret=CNFG.get("secret"),
