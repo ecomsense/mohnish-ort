@@ -1,7 +1,9 @@
 from broker_ai.delta.wsocket import Wsocket
 from broker_ai.delta.symbols import Symbol
 from sdk.restapi import Restapi
+from sdk.models import LegState
 from constants import get_logger
+import pendulum
 
 log = get_logger(__name__)
 
@@ -100,3 +102,16 @@ class OrderManager:
             if o.get("order_id") == order_id and o.get("status") in done:
                 return True
         return False
+
+    def manage_leg(self, opt, config: dict) -> None:
+        if opt.status == LegState.SHORT:
+            if self.is_order_complete(opt.buy_id):
+                log.info(f"{opt.tradingsymbol} SAR hit. Flipping to LONG.")
+                opt.status = LegState.LONG
+                opt.entry_time = pendulum.now()
+                price = opt.buy_params["trigger_price"]
+                opt.buy_params["price"] = price
+                lst_of_bands = (price - self.stop_loss, price + self.target)
+                opt.bounds = [lst_of_bands], [price]
+        elif opt.status == LegState.LONG:
+            pass  # TTL and OOB checks — future

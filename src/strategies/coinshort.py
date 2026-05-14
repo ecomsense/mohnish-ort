@@ -1,4 +1,4 @@
-from sdk.models import Calls, Puts, Options, LegState
+from sdk.models import Calls, Puts, LegState
 from constants import get_logger
 import pendulum
 import json
@@ -161,16 +161,7 @@ class Coinshort:
                 return
 
             for opt in [self.ce, self.pe]:
-                if opt.status == LegState.SHORT:
-                    if self._is_order_complete(opt.buy_id):
-                        log.info(f"{opt.tradingsymbol} SAR hit. Status flipping to LONG.")
-                        opt.status = LegState.LONG
-                        opt.entry_time = pendulum.now()
-                        opt.buy_params["price"] = opt.buy_params["trigger_price"]
-                        self.set_bounds(opt)
-
-                elif opt.status == LegState.LONG:
-                    pass
+                self.om.manage_leg(opt, self.config)
 
             if underlying_price >= self.upper_bound and self.ce.status == LegState.LONG:
                 self.tier += 1
@@ -184,11 +175,6 @@ class Coinshort:
         except Exception as e:
             log.error(f"Coinshort tick error: {e}")
             print_exc()
-
-    def set_bounds(self, opt: Options) -> None:
-        median = opt.buy_params["price"]
-        lst_of_bands = (median - self.stop_loss, median + self.target)
-        opt.bounds = [lst_of_bands], [median]
 
     def t_upper_protocol(self) -> None:
         pass
