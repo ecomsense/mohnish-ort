@@ -18,7 +18,7 @@ class IntentType(Enum):
     NONE = "none"
 ```
 
-## Dataclasses (target — not yet implemented)
+## Dataclasses (aspirational — not implemented)
 
 ```python
 @dataclass
@@ -34,6 +34,8 @@ class ExecutionResult:
     fill_price: float
     strike: int
 ```
+
+Note: These dataclasses are aspirational. Current implementation uses raw dicts for intent/result passing.
 
 ## Persistent State (JSON — coinshort_state.json)
 
@@ -83,7 +85,7 @@ class Coinshort:
     def tick(self, ws: Wsocket) -> None
     def cleanup(self) -> None
 
-class OrderManager:   # target — not yet implemented
+class OrderManager:
     def execute(self, intent: Intent, underlying_price: float) -> ExecutionResult
 
 class Wsocket:
@@ -123,3 +125,9 @@ Golden rule: never both legs SHORT after initial entry.
 | SHORT | LONG | Call can shift (T2) |
 | LONG | LONG | Both active independently |
 | SHIFTED | * | Opposite must be FLAT or LONG |
+
+## Open Design Issues
+
+- **D1**: `manage_leg` reads `opt_price` but never uses it in SHORT→LONG path — dead read.
+- **D2**: Repeated `__import__("sdk.models", ...).Calls` in `order_manager.py` (lines 134, 154, 177) — extract `_option_type()` helper or add property to `Options`.
+- **D3**: `_close_satellite(tier=1)` hardcodes PE close. For lower breach at T3, CE should close instead. Logic should dispatch on trigger direction, not hardcode option type.

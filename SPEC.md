@@ -49,21 +49,28 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ## Known Issues
 
-### Implement (stubs)
-
-- [ ] T2 protocols (t_upper/lower + interlock) not implemented
-
 ### Bugs
 
-*None — all resolved.*
+- [ ] B1: `_close_satellite(tier=1)` always closes PE — on lower breach at T3, CE should close instead
+- [ ] B2: `_entry_ce_id` / `_entry_pe_id` not persisted — crash during straddle entry causes double-entry on restart
+- [ ] B3: SL modification on target/TTL hit (`order_modify` to MARKET) races with SL trigger — cancel-first pattern needed
 
 ### Design
 
-*None — all resolved.*
+- [ ] D1: `manage_leg` reads `opt_price` but never uses it in SHORT→LONG path — dead read
+- [ ] D2: Repeated `__import__("sdk.models", ...).Calls` in `order_manager.py:134,154,177` — extract helper
+- [ ] D3: `_close_satellite(tier=1)` logic assumes PE is always the T1 side to close (tied to B1)
 
 ### Code Quality
 
-- [ ] Q2: `ensure_paths()` creates log dir but not `S_DATA` for state files.
+- [ ] Q1: `sdk/utils.py` duplicates `S_DATA = "../data/"` from `constants.py`
+- [ ] Q2: `requirements.txt` still present with `kiteext` dep — remove, use `pyproject.toml` only
+- [ ] Q3: No `AGENTS.md` with troubleshooting checklist
+- [ ] Q4: No lint config (ruff/mypy) in `pyproject.toml`
+
+### Infra
+
+- [ ] I1: `factory/` directory missing — `ensure_paths()` can't bootstrap settings/symbols on fresh clone
 
 ### Done
 

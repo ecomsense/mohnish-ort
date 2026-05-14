@@ -19,7 +19,7 @@ Engine.run()
        blink()
 ```
 
-## Tick Cycle (current — stubs)
+## Tick Cycle (current — implemented)
 
 ```
 Coinshort.tick(ws)
@@ -28,16 +28,21 @@ Coinshort.tick(ws)
   │      if bn_ltp == 0: return
   │
   ├─ 2. for each leg (CE, PE):
-  │      if SHORT and SL order COMPLETE → flip to LONG
-  │      if LONG → stub (TTL/OOB not implemented)
+  │      om.manage_leg(opt, underlying_price)
+  │        ├─ SHORT + SL COMPLETE → flip to LONG (enter SAR)
+  │        ├─ LONG + target hit → shift strike (enter_short same type)
+  │        ├─ LONG + TTL exceeded + in profit → shift strike
+  │        ├─ LONG + SL COMPLETE → flip to SHORT
+  │        └─ SHIFTED + SL COMPLETE → FLAT
   │
   ├─ 3. if underlying crosses bound + leg is LONG:
-  │      tier += 1, run T2 protocol (stub)
+  │      tier += 1, run T_upper/T_lower protocol
+  │      (sell satellite option on opposite side, close T(x-2) satellite)
   │
   └─ 4. save_state() → JSON to disk
 ```
 
-## Target Tick Cycle (with OrderManager)
+## Tick Cycle (aspirational — intent-based refactor)
 
 ```
 Coinshort.tick(ws)
@@ -101,6 +106,12 @@ OrderManager._enter_short(strike, option_type)
              T2 trigger (underlying
              crosses bound + leg=LONG)
                     │
-             T_upper or T_lower protocol
-             (shift opposite leg)
+              T_upper or T_lower protocol
+              (shift opposite leg)
+
+## Open Flow Issues
+
+- **B3**: SL modification on target/TTL hit (`order_modify` to MARKET) races with SL trigger — order should be cancelled first, then market exit placed.
+- **B1/D3**: `_close_satellite(tier=1)` hardcodes PE close. For lower breach T3, CE should close instead.
+- **B2**: `_entry_ce_id` / `_entry_pe_id` not persisted — restart during straddle entry loses tracking.
 ```
