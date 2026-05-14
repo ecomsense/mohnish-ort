@@ -66,7 +66,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [ ] Q1: `sdk/utils.py` duplicates `S_DATA = "../data/"` from `constants.py`
 - [x] Q2: `requirements.txt` removed — deps managed solely through `pyproject.toml`
 - [ ] Q3: No `AGENTS.md` with troubleshooting checklist
-- [ ] Q4: No lint config (ruff/mypy) in `pyproject.toml`
+- [x] Q4: ruff config added to `pyproject.toml` (py310, E/F/I/N/W, line-length 120)
 
 ### Done
 
