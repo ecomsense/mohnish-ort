@@ -185,9 +185,18 @@ class Coinshort:
             log.error(f"Coinshort tick error: {e}")
             print_exc()
 
+    def _close_satellite(self, tier: int) -> None:
+        for s in self._satellites:
+            if s["tier"] == tier and s["status"] != LegState.FLAT:
+                self.om.api.api().order_cancel(order_id=s["buy_id"])
+                self.om.exit_position(s["instrument_token"], s["tradingsymbol"])
+                s["status"] = LegState.FLAT
+                log.info(f"Closed T{tier} satellite {s['tradingsymbol']}")
+
     def t_upper_protocol(self, underlying_price: float) -> None:
-        if any(s["tier"] == self.tier for s in self._satellites):
+        if any(s["tier"] == self.tier for s in self._satellites if s["status"] != LegState.FLAT):
             return
+        self._close_satellite(self.tier - 2)
         log.info(f"T2 breach at {underlying_price}. Selling T{self.tier} put.")
         result = self.om.enter_short(underlying_price, "PE")
         if "error" in result:
@@ -212,8 +221,9 @@ class Coinshort:
         log.info(f"T{self.tier} put sold. New bounds: [{b[1]}, {b[0]}]")
 
     def t_lower_protocol(self, underlying_price: float) -> None:
-        if any(s["tier"] == self.tier for s in self._satellites):
+        if any(s["tier"] == self.tier for s in self._satellites if s["status"] != LegState.FLAT):
             return
+        self._close_satellite(self.tier - 2)
         log.info(f"T-2 breach at {underlying_price}. Selling T{self.tier} call.")
         result = self.om.enter_short(underlying_price, "CE")
         if "error" in result:
