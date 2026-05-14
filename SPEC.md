@@ -64,7 +64,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ### Code Quality
 
 - [ ] Q1: `sdk/utils.py` duplicates `S_DATA = "../data/"` from `constants.py`
-- [ ] Q2: `requirements.txt` still present with `kiteext` dep — remove, use `pyproject.toml` only
+- [x] Q2: `requirements.txt` removed — deps managed solely through `pyproject.toml`
 - [ ] Q3: No `AGENTS.md` with troubleshooting checklist
 - [ ] Q4: No lint config (ruff/mypy) in `pyproject.toml`
 
