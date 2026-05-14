@@ -75,4 +75,5 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [x] DI: Coinshort receives config + deps via constructor (Builder builds them)
 - [x] OrderManager — resolves symbols, subscribes quotes, places orders
 - [x] Delta broker wired (replaces Fake)
-- [x] T1 entry + full SAR cycle (SHORT↔LONG, target exit, TTL, 20 tests)
+- [x] T1 entry + full SAR cycle (SHORT↔LONG, target exit, TTL, 24 tests)
+- [x] T2/T-2 protocols (shift opposite leg, per-tier bounds, SHIFTED state)

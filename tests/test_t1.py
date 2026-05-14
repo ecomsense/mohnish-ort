@@ -48,7 +48,7 @@ def cs(om, mock_api, mock_symbols):
         underlying_token=1001,
         underlying_symbol="BTC-USD",
     )
-    cs.upper_bound = 0
+    cs.bounds = []
     cs._entry_ce_id = None
     cs._entry_pe_id = None
     cs.ce = Calls()
@@ -77,20 +77,21 @@ class TestEnterStraddle:
 
 class TestTickEntry:
     def test_enters_straddle_on_first_tick(self, cs):
-        cs.upper_bound = 0
+        cs.bounds = []
         with patch.object(cs, '_enter_straddle') as mock:
             cs.tick(50000)
             mock.assert_called_once_with(50000)
 
     def test_skips_entry_when_bounds_exist(self, cs):
-        cs.upper_bound = 51000
-        cs.lower_bound = 49000
+        cs.bounds = [[51000, 49000]]
+        cs._entry_ce_id = None
+        cs._entry_pe_id = None
         with patch.object(cs, '_enter_straddle') as mock:
             cs.tick(50000)
             mock.assert_not_called()
 
     def test_waits_for_fill(self, cs):
-        cs.upper_bound = 0
+        cs.bounds = []
         cs._entry_ce_id = "ce1"
         cs._entry_pe_id = "pe1"
         with patch.object(cs, '_is_order_complete', return_value=False):
@@ -99,7 +100,7 @@ class TestTickEntry:
                 mock.assert_not_called()
 
     def test_finalizes_when_both_filled(self, cs):
-        cs.upper_bound = 0
+        cs.bounds = []
         cs._entry_ce_id = "ce1"
         cs._entry_pe_id = "pe1"
         with patch.object(cs, '_is_order_complete', side_effect=[True, True]):
@@ -115,8 +116,8 @@ class TestFinalizeEntry:
         cs.api.find_fillprice_from_order_id = MagicMock(side_effect=[150.0, 120.0])
         cs._finalize_entry(50000)
         assert cs.current_premium == 270.0
-        assert cs.upper_bound == 50270.0
-        assert cs.lower_bound == 49730.0
+        assert cs.bounds[-1][0] == 50270.0
+        assert cs.bounds[-1][1] == 49730.0
         assert cs._entry_ce_id is None
 
     def test_skips_if_price_not_available(self, cs):
@@ -218,11 +219,30 @@ class TestManagerT1:
         om.manage_leg(opt, 50000)
         assert opt.status == LegState.LONG
 
+    def test_shifted_leg_exits_on_sl(self, om):
+        opt = Calls()
+        opt.status = LegState.SHIFTED
+        opt.buy_id = "b1"
+        opt.instrument_token = 1002
+        broker = om.api.api()
+        broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
+        om.manage_leg(opt, 50000)
+        assert opt.status == LegState.FLAT
+
+    def test_shifted_leg_no_change_on_no_sl(self, om):
+        opt = Calls()
+        opt.status = LegState.SHIFTED
+        opt.buy_id = "b1"
+        opt.instrument_token = 1002
+        broker = om.api.api()
+        broker.orders = [{"order_id": "b1", "status": "PENDING"}]
+        om.manage_leg(opt, 50000)
+        assert opt.status == LegState.SHIFTED
+
 
 class TestT2Trigger:
     def test_t2_upper_when_price_above_and_call_long(self, cs):
-        cs.upper_bound = 51000
-        cs.lower_bound = 49000
+        cs.bounds = [[51000, 49000]]
         cs.ce.status = LegState.LONG
         cs.pe.status = LegState.SHORT
         cs.tier = 1
@@ -232,8 +252,7 @@ class TestT2Trigger:
             mock.assert_called_once()
 
     def test_no_t2_when_call_not_long(self, cs):
-        cs.upper_bound = 51000
-        cs.lower_bound = 49000
+        cs.bounds = [[51000, 49000]]
         cs.ce.status = LegState.SHORT
         cs.tier = 1
         with patch.object(cs, 't_upper_protocol') as mock:
@@ -242,8 +261,7 @@ class TestT2Trigger:
             mock.assert_not_called()
 
     def test_no_t2_when_price_within_bounds(self, cs):
-        cs.upper_bound = 51000
-        cs.lower_bound = 49000
+        cs.bounds = [[51000, 49000]]
         cs.ce.status = LegState.LONG
         cs.tier = 1
         with patch.object(cs, 't_upper_protocol') as mock:
@@ -251,8 +269,7 @@ class TestT2Trigger:
             mock.assert_not_called()
 
     def test_t2_lower_when_price_below_and_put_long(self, cs):
-        cs.upper_bound = 51000
-        cs.lower_bound = 49000
+        cs.bounds = [[51000, 49000]]
         cs.pe.status = LegState.LONG
         cs.ce.status = LegState.SHORT
         cs.tier = 1
@@ -260,3 +277,45 @@ class TestT2Trigger:
             cs.tick(48500)
             assert cs.tier == 2
             mock.assert_called_once()
+
+
+class TestT2Protocol:
+    def test_upper_shifts_put_and_recalculates_bounds(self, cs):
+        cs.bounds = [[51000, 49000]]
+        cs.current_premium = 1000
+        cs.ce.status = LegState.LONG
+        cs.pe.status = LegState.SHORT
+        cs.tier = 1
+        cs.pe.buy_id = "b1"
+        cs.pe.buy_params = {}
+        cs.om.api.api().order_cancel = MagicMock()
+        cs.om.enter_short = MagicMock(return_value={
+            "symbol": "PE-52000", "token": "2002", "strike": 52000,
+            "price": 200, "short_id": "s2", "sl_id": "b2",
+        })
+        cs.tick(52000)
+        assert cs.tier == 2
+        assert cs.current_premium == 1200
+        assert cs.bounds[-1][0] == 53200
+        assert cs.bounds[-1][1] == 50800
+        assert cs.pe.status == LegState.SHIFTED
+
+    def test_lower_shifts_call_and_recalculates_bounds(self, cs):
+        cs.bounds = [[51000, 49000]]
+        cs.current_premium = 1000
+        cs.pe.status = LegState.LONG
+        cs.ce.status = LegState.SHORT
+        cs.tier = 1
+        cs.ce.buy_id = "b1"
+        cs.ce.buy_params = {}
+        cs.om.api.api().order_cancel = MagicMock()
+        cs.om.enter_short = MagicMock(return_value={
+            "symbol": "CE-48000", "token": "1002", "strike": 48000,
+            "price": 150, "short_id": "s1", "sl_id": "b1",
+        })
+        cs.tick(48500)
+        assert cs.tier == 2
+        assert cs.current_premium == 1150
+        assert cs.bounds[-1][0] == 49650
+        assert cs.bounds[-1][1] == 47350
+        assert cs.ce.status == LegState.SHIFTED

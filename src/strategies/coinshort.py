@@ -20,8 +20,7 @@ class Coinshort:
         self.underlying_symbol = underlying_symbol
 
         self.tier: int = 1
-        self.upper_bound: float = 0
-        self.lower_bound: float = 0
+        self.bounds: list[list[float]] = []
         self.current_premium: float = 0
 
         self.ce: Calls = Calls()
@@ -51,8 +50,7 @@ class Coinshort:
             state = {
                 "strategy": {
                     "tier": self.tier,
-                    "upper_bound": self.upper_bound,
-                    "lower_bound": self.lower_bound,
+                    "bounds": self.bounds,
                     "current_premium": self.current_premium,
                 },
                 "ce": opt_to_dict(self.ce),
@@ -80,8 +78,7 @@ class Coinshort:
 
             strat = state.get("strategy", {})
             self.tier = strat.get("tier", 1)
-            self.upper_bound = strat.get("upper_bound", 0)
-            self.lower_bound = strat.get("lower_bound", 0)
+            self.bounds = strat.get("bounds", [])
             self.current_premium = strat.get("current_premium", 0)
 
             def dict_to_opt(opt, data):
@@ -137,14 +134,15 @@ class Coinshort:
         if ce_price == 0 or pe_price == 0:
             return
         self.current_premium = ce_price + pe_price
-        self.upper_bound = underlying_price + self.current_premium
-        self.lower_bound = underlying_price - self.current_premium
+        self.bounds.append([underlying_price + self.current_premium,
+                            underlying_price - self.current_premium])
         self.ce.status = LegState.SHORT
         self.pe.status = LegState.SHORT
         self._entry_ce_id = None
         self._entry_pe_id = None
+        b = self.bounds[-1]
         log.info(f"T1 entry complete. Premium={self.current_premium}, "
-                 f"Bounds=[{self.lower_bound}, {self.upper_bound}]")
+                 f"Bounds=[{b[1]}, {b[0]}]")
         self.save_state()
 
     def tick(self, underlying_price: float) -> None:
@@ -152,7 +150,7 @@ class Coinshort:
             if underlying_price == 0:
                 return
 
-            if self.upper_bound == 0:
+            if not self.bounds:
                 if self._entry_ce_id is None:
                     self._enter_straddle(underlying_price)
                 elif (self._is_order_complete(self._entry_ce_id)
@@ -163,12 +161,13 @@ class Coinshort:
             for opt in [self.ce, self.pe]:
                 self.om.manage_leg(opt, underlying_price)
 
-            if underlying_price >= self.upper_bound and self.ce.status == LegState.LONG:
+            upper, lower = self.bounds[-1]
+            if underlying_price >= upper and self.ce.status == LegState.LONG:
                 self.tier += 1
-                self.t_upper_protocol()
-            elif underlying_price <= self.lower_bound and self.pe.status == LegState.LONG:
+                self.t_upper_protocol(underlying_price)
+            elif underlying_price <= lower and self.pe.status == LegState.LONG:
                 self.tier += 1
-                self.t_lower_protocol()
+                self.t_lower_protocol(underlying_price)
 
             self.save_state()
 
@@ -176,11 +175,51 @@ class Coinshort:
             log.error(f"Coinshort tick error: {e}")
             print_exc()
 
-    def t_upper_protocol(self) -> None:
-        pass
+    def t_upper_protocol(self, underlying_price: float) -> None:
+        log.info(f"T2 breach at {underlying_price}. Shifting PUT up.")
+        if self.pe.status == LegState.SHORT:
+            self.om.api.api().order_cancel(order_id=self.pe.buy_id)
+        result = self.om.enter_short(underlying_price, "PE")
+        if "error" in result:
+            return
+        self.pe.tradingsymbol = result["symbol"]
+        self.pe.instrument_token = int(result["token"])
+        self.pe.short_id = result["short_id"]
+        self.pe.buy_id = result["sl_id"]
+        self.pe.status = LegState.SHIFTED
+        self.pe.entry_time = None
+        self.pe.buy_params = {
+            "price": result["price"],
+            "trigger_price": result["price"] + self.config.get("stop_loss", 500),
+        }
+        self.current_premium += result["price"]
+        self.bounds.append([underlying_price + self.current_premium,
+                            underlying_price - self.current_premium])
+        b = self.bounds[-1]
+        log.info(f"T2 complete. New bounds: [{b[1]}, {b[0]}]")
 
-    def t_lower_protocol(self) -> None:
-        pass
+    def t_lower_protocol(self, underlying_price: float) -> None:
+        log.info(f"T-2 breach at {underlying_price}. Shifting CALL down.")
+        if self.ce.status == LegState.SHORT:
+            self.om.api.api().order_cancel(order_id=self.ce.buy_id)
+        result = self.om.enter_short(underlying_price, "CE")
+        if "error" in result:
+            return
+        self.ce.tradingsymbol = result["symbol"]
+        self.ce.instrument_token = int(result["token"])
+        self.ce.short_id = result["short_id"]
+        self.ce.buy_id = result["sl_id"]
+        self.ce.status = LegState.SHIFTED
+        self.ce.entry_time = None
+        self.ce.buy_params = {
+            "price": result["price"],
+            "trigger_price": result["price"] + self.config.get("stop_loss", 500),
+        }
+        self.current_premium += result["price"]
+        self.bounds.append([underlying_price + self.current_premium,
+                            underlying_price - self.current_premium])
+        b = self.bounds[-1]
+        log.info(f"T-2 complete. New bounds: [{b[1]}, {b[0]}]")
 
     def cleanup(self) -> None:
         log.info("Coinshort Strategy cleanup")

@@ -187,3 +187,7 @@ class OrderManager:
                     }
         elif opt.status == LegState.FLAT:
             pass
+        elif opt.status == LegState.SHIFTED:
+            if self.is_order_complete(opt.buy_id):
+                log.info(f"{opt.tradingsymbol} SL hit. Exiting shifted leg.")
+                opt.status = LegState.FLAT
