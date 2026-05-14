@@ -103,6 +103,12 @@ class OrderManager:
                 return True
         return False
 
+    def cancel_order(self, order_id: str) -> None:
+        try:
+            self.api.api().order_cancel(order_id=order_id)
+        except Exception as e:
+            log.warning(f"Cancel {order_id}: {e}")
+
     def manage_leg(self, opt, underlying_price: float) -> None:
         opt_price = self.ws.ltp.get(str(opt.instrument_token), 0.0)
         if opt.status == LegState.SHORT:
@@ -130,6 +136,7 @@ class OrderManager:
             target = opt.buy_params.get("target")
             if target and opt_price >= target:
                 log.info(f"{opt.tradingsymbol} target {target} hit at {opt_price}. Shifting strike.")
+                self.cancel_order(opt.buy_id)
                 self.exit_position(opt.instrument_token, opt.tradingsymbol)
                 option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
                 result = self.enter_short(underlying_price, option_type)
@@ -150,6 +157,7 @@ class OrderManager:
                 mins = (pendulum.now() - opt.entry_time).in_minutes()
                 if mins >= ttl and opt_price > opt.buy_params.get("price", 0):
                     log.info(f"{opt.tradingsymbol} TTL {ttl}m exceeded. Shifting strike.")
+                    self.cancel_order(opt.buy_id)
                     self.exit_position(opt.instrument_token, opt.tradingsymbol)
                     option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
                     result = self.enter_short(underlying_price, option_type)
