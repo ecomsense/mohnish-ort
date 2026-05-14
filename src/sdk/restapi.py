@@ -26,7 +26,7 @@ def get_broker() -> Delta:
         raise
 
 
-class RestApi:
+class Restapi:
     api_object: Delta | None = None
 
     @classmethod
@@ -37,7 +37,7 @@ class RestApi:
 
     def __init__(self, initial_quantity: int) -> None:
         Order.set_quantity(initial_quantity)
-        RestApi.api()
+        Restapi.api()
 
     def enter(self, kwargs: dict) -> str:
         try:

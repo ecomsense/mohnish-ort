@@ -1,7 +1,7 @@
 from constants import CNFG, S_DATA, ensure_paths, init_logging, get_logger
 from broker_ai.delta.wsocket import Wsocket
 from broker_ai.delta.symbols import Symbol
-from sdk.restapi import RestApi
+from sdk.restapi import Restapi
 from core.build import Builder
 from core.engine import Engine
 from toolkit.kokoo import is_time_past, blink
@@ -32,7 +32,7 @@ def root() -> None:
             symbol=base.get("base", "BTC"),
             data_path=S_DATA,
         )
-        api = RestApi(config.get("quantity", 1))
+        api = Restapi(config.get("quantity", 1))
         underlying_token = int(base.get("instrument_token", 0))
         underlying_symbol = base.get("tradingsymbol", "")
 

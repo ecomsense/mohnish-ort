@@ -1,12 +1,12 @@
 from broker_ai.delta.wsocket import Wsocket
 from broker_ai.delta.symbols import Symbol
-from sdk.restapi import RestApi
+from sdk.restapi import Restapi
 from constants import get_logger
 
 log = get_logger(__name__)
 
 class OrderManager:
-    def __init__(self, ws: Wsocket, symbols: Symbol, api: RestApi, config: dict) -> None:
+    def __init__(self, ws: Wsocket, symbols: Symbol, api: Restapi, config: dict) -> None:
         self.ws = ws
         self.symbols = symbols
         self.api = api

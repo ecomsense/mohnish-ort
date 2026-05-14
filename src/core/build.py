@@ -1,6 +1,6 @@
 from broker_ai.delta.symbols import Symbol
 from broker_ai.delta.wsocket import Wsocket
-from sdk.restapi import RestApi
+from sdk.restapi import Restapi
 from sdk.order_manager import OrderManager
 from strategies.coinshort import Coinshort
 from constants import get_logger
@@ -8,7 +8,7 @@ from constants import get_logger
 log = get_logger(__name__)
 
 class Builder:
-    def build(self, config: dict, symbols: Symbol, api: RestApi,
+    def build(self, config: dict, symbols: Symbol, api: Restapi,
               ws: Wsocket, underlying_token: int, underlying_symbol: str) -> Coinshort | None:
         try:
             om = OrderManager(ws=ws, symbols=symbols, api=api, config=config)

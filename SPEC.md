@@ -41,7 +41,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 | `src/core/engine.py` | Tick loop orchestrator |
 | `src/strategies/coinshort.py` | Strategy logic |
 | `src/constants.py` | Config + logger |
-| `src/sdk/restapi.py` | RestApi (Delta broker wrapper) |
+| `src/sdk/restapi.py` | Restapi (Delta broker wrapper) |
 | `broker_ai.delta.wsocket` | Websocket ticker (from broker-ai dep) |
 | `broker_ai.delta.symbols` | Symbol resolution (from broker-ai dep) |
 | `src/sdk/models.py` | Data models |
