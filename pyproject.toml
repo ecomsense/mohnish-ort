@@ -17,3 +17,8 @@ dependencies = [
 [tool.uv.sources]
 broker-ai = { git = "https://github.com/pannet1/broker-ai" }
 toolkit = { git = "https://github.com/pannet1/toolkit" }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
