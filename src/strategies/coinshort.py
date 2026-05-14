@@ -1,9 +1,5 @@
-from broker_ai.delta.symbols import Symbol
-from sdk.helper import RestApi
-from sdk.order_manager import OrderManager
 from sdk.models import Calls, Puts, Options, LegState
 from constants import get_logger
-from broker_ai.delta.wsocket import Wsocket
 import pendulum
 import json
 from traceback import print_exc
@@ -13,8 +9,8 @@ log = get_logger(__name__)
 
 
 class Coinshort:
-    def __init__(self, config: dict, symbols: Symbol, api: RestApi,
-                 om: OrderManager, underlying_token: int, underlying_symbol: str) -> None:
+    def __init__(self, config: dict, symbols, api, om,
+                 underlying_token: int, underlying_symbol: str) -> None:
         log.info("Initializing Coinshort Strategy (T1)")
         self.config = config
         self.symbols = symbols
@@ -103,21 +99,13 @@ class Coinshort:
     def _is_order_complete(self, order_id: str) -> bool:
         return self.om.is_order_complete(order_id)
 
-    def get_ltp(self, ws: Wsocket, instrument_token: int, tradingsymbol: str) -> float:
-        price = ws.ltp.get(str(instrument_token))
-        if price is not None:
-            return price
-        log.error(f"Could not fetch LTP for {tradingsymbol}")
-        return 0.0
-
     def initial_entry(self) -> None:
         log.info("Executing Initial T1 Neutral Entry")
-        # stub - will implement fully
+        # stub
 
-    def tick(self, ws: Wsocket) -> None:
+    def tick(self, underlying_price: float) -> None:
         try:
-            bn_ltp = self.get_ltp(ws, self.underlying_token, self.underlying_symbol)
-            if bn_ltp == 0:
+            if underlying_price == 0:
                 return
 
             for opt in [self.ce, self.pe]:
@@ -133,12 +121,12 @@ class Coinshort:
                     pass
                     # TTL and OOB checks stub
 
-            if bn_ltp >= self.upper_bound and self.ce.status == LegState.LONG:
+            if underlying_price >= self.upper_bound and self.ce.status == LegState.LONG:
                 self.tier += 1
-                self.t_upper_protocol(ws)
-            elif bn_ltp <= self.lower_bound and self.pe.status == LegState.LONG:
+                self.t_upper_protocol()
+            elif underlying_price <= self.lower_bound and self.pe.status == LegState.LONG:
                 self.tier += 1
-                self.t_lower_protocol(ws)
+                self.t_lower_protocol()
 
             self.save_state()
 
@@ -151,10 +139,10 @@ class Coinshort:
         lst_of_bands = (median - self.stop_loss, median + self.target)
         opt.bounds = [lst_of_bands], [median]
 
-    def t_upper_protocol(self, ws: Wsocket) -> None:
+    def t_upper_protocol(self) -> None:
         pass
 
-    def t_lower_protocol(self, ws: Wsocket) -> None:
+    def t_lower_protocol(self) -> None:
         pass
 
     def cleanup(self) -> None:

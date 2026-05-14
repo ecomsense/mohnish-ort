@@ -39,7 +39,7 @@ def root() -> None:
         strategy = Builder().build(config, symbols, api, ws,
                                    underlying_token, underlying_symbol)
         if strategy:
-            Engine(strategy, ws, [str(underlying_token)]).run()
+            Engine(strategy, ws, str(underlying_token)).run()
         else:
             log.error("No strategy built. Exiting.")
 
