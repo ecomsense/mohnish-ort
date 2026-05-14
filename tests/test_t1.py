@@ -145,7 +145,8 @@ class TestManagerT1:
         broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
         om.manage_leg(opt, {})
         assert opt.status == LegState.LONG
-        assert opt.bounds is not None
+        assert opt.buy_params["price"] == 50100
+        assert opt.buy_params["target"] == 50100 + om.target
 
     def test_no_change_when_sl_not_hit(self, om):
         opt = Calls()

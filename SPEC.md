@@ -52,9 +52,8 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ### Implement (stubs)
 
 - [ ] TTL/OOB logic in tick() stubbed
-- [ ] T2 protocols (t_upper/lower) not ported to tick pattern
-- [ ] cleanup() is stub
-- [ ] Interlock rules not implemented
+- [ ] T1 LONG leg management (target exit + TTL check) not implemented
+- [ ] T2 protocols (t_upper/lower + interlock) not implemented
 
 ### Bugs
 
