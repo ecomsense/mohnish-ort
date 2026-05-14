@@ -3,7 +3,6 @@ log:
   level: 20
 program:
   start: "9:15"
-  stop: "15:30"
 strategy_name: "Coinshort"
 strategy:
   base: BTC-DELTA
@@ -18,6 +17,6 @@ base_instrument:
   diff: 100
   depth: 20
   exchange: DELTA
-  instrument_token: 1001
-  tradingsymbol: BTC-USD
+  instrument_token: 1001     # ws token for BTC-USD perpetual/future
+  tradingsymbol: BTC-USD      # underlying future symbol
 broker: delta-india

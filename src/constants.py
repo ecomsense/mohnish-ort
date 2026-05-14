@@ -1,4 +1,5 @@
 from os import path
+import shutil
 from toolkit.fileutils import Fileutils
 from toolkit.async_logger import AsyncLogger
 import logging as _logging
@@ -11,10 +12,19 @@ S_FACTORY = "../factory/"
 S_SETTINGS = S_DATA + "settings.yml"
 S_SYMBOLS = S_DATA + "symbols.yml"
 
+_TEMPLATES = [
+    (S_FACTORY + "settings.yml", S_SETTINGS),
+    (S_FACTORY + "symbols.yml", S_SYMBOLS),
+]
+
 def ensure_paths():
     if not O_FUTL.is_file_exists(S_LOG):
         print("creating data dir")
         O_FUTL.add_path(S_LOG)
+    for src, dst in _TEMPLATES:
+        if not path.exists(dst) and path.exists(src):
+            shutil.copy2(src, dst)
+            print(f"copied template {src} -> {dst}")
 
 def load_yml(file_path: str) -> dict:
     if not path.exists(file_path):
