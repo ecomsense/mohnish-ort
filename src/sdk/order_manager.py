@@ -109,7 +109,9 @@ class OrderManager:
                 log.info(f"{opt.tradingsymbol} SAR hit. Flipping to LONG.")
                 opt.status = LegState.LONG
                 opt.entry_time = pendulum.now()
-                price = opt.buy_params["trigger_price"]
+                price = opt.buy_params.get("trigger_price", 0) or 0
+                if price == 0:
+                    return
                 opt.buy_params["price"] = price
                 lst_of_bands = (price - self.stop_loss, price + self.target)
                 opt.bounds = [lst_of_bands], [price]

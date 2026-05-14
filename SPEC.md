@@ -59,7 +59,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ### Bugs
 
-- [ ] B3: `strategies/coinshort.py` — `set_bounds` accesses `buy_params["price"]` without key check. May KeyError.
+*None — all resolved.*
 
 ### Design
 
