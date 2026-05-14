@@ -130,7 +130,7 @@ class OrderManager:
             target = opt.buy_params.get("target")
             if target and opt_price >= target:
                 log.info(f"{opt.tradingsymbol} target {target} hit at {opt_price}. Shifting strike.")
-                self.api.api().order_modify(order_id=opt.buy_id, order_type="MARKET", price=0.0)
+                self.api.api().order_modify(order_id=opt.buy_id, order_type="MARKET", price=0.0, quantity=self.quantity)
                 option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
                 result = self.enter_short(underlying_price, option_type)
                 if "error" not in result:
@@ -150,7 +150,7 @@ class OrderManager:
                 mins = (pendulum.now() - opt.entry_time).in_minutes()
                 if mins >= ttl and opt_price > opt.buy_params.get("price", 0):
                     log.info(f"{opt.tradingsymbol} TTL {ttl}m exceeded. Shifting strike.")
-                    self.api.api().order_modify(order_id=opt.buy_id, order_type="MARKET", price=0.0)
+                    self.api.api().order_modify(order_id=opt.buy_id, order_type="MARKET", price=0.0, quantity=self.quantity)
                     option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
                     result = self.enter_short(underlying_price, option_type)
                     if "error" not in result:
