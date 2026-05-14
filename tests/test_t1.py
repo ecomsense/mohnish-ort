@@ -164,6 +164,18 @@ class TestManagerT1:
         om.manage_leg(opt, {})
         assert opt.status == LegState.LONG
 
+    def test_long_to_short_on_sl_hit(self, om):
+        opt = Calls()
+        opt.status = LegState.LONG
+        opt.buy_id = "b1"
+        opt.buy_params = {"trigger_price": 49500, "price": 50100}
+        opt.tradingsymbol = "BTC-CE"
+        broker = om.api.api()
+        broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
+        om.manage_leg(opt, {})
+        assert opt.status == LegState.SHORT
+        assert "target" not in opt.buy_params
+
 
 class TestT2Trigger:
     def test_t2_upper_when_price_above_and_call_long(self, cs):

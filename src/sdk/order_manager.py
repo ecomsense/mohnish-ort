@@ -107,12 +107,42 @@ class OrderManager:
         if opt.status == LegState.SHORT:
             if self.is_order_complete(opt.buy_id):
                 log.info(f"{opt.tradingsymbol} SAR hit. Flipping to LONG.")
-                opt.status = LegState.LONG
-                opt.entry_time = pendulum.now()
                 entry_price = opt.buy_params.get("trigger_price", 0) or 0
                 if entry_price == 0:
                     return
+                opt.status = LegState.LONG
+                opt.entry_time = pendulum.now()
                 opt.buy_params["price"] = entry_price
                 opt.buy_params["target"] = entry_price + self.target
+                sl_id = self.api.enter({
+                    "symbol": opt.tradingsymbol,
+                    "side": "SELL",
+                    "order_type": "SL",
+                    "quantity": self.quantity * 2,
+                    "last_price": entry_price,
+                    "trigger_price": entry_price - self.stop_loss,
+                    "price": entry_price - self.stop_loss - self.slippage,
+                    "tag": "stoploss_long",
+                })
+                opt.buy_id = sl_id
         elif opt.status == LegState.LONG:
-            pass  # target and TTL checks — future
+            if self.is_order_complete(opt.buy_id):
+                log.info(f"{opt.tradingsymbol} SAR hit. Flipping to SHORT.")
+                entry_price = opt.buy_params.get("trigger_price", 0) or 0
+                if entry_price == 0:
+                    return
+                opt.status = LegState.SHORT
+                opt.entry_time = pendulum.now()
+                opt.buy_params["price"] = entry_price
+                opt.buy_params.pop("target", None)
+                sl_id = self.api.enter({
+                    "symbol": opt.tradingsymbol,
+                    "side": "BUY",
+                    "order_type": "SL",
+                    "quantity": self.quantity * 2,
+                    "last_price": entry_price,
+                    "trigger_price": entry_price + self.stop_loss,
+                    "price": entry_price + self.stop_loss + self.slippage,
+                    "tag": "stoploss_short",
+                })
+                opt.buy_id = sl_id
