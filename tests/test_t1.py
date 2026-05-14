@@ -33,7 +33,7 @@ def mock_api():
 
 @pytest.fixture
 def om(mock_ws, mock_symbols, mock_api):
-    config = {"quantity": 1, "stop_loss": 500, "target": 1000, "slippage": 0.5}
+    config = {"quantity": 1, "stop_loss": 500, "target": 1000, "slippage": 0.5, "ttl": 60}
     return OrderManager(ws=mock_ws, symbols=mock_symbols, api=mock_api, config=config)
 
 
@@ -144,7 +144,7 @@ class TestManagerT1:
         opt.instrument_token = 1002
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
-        om.manage_leg(opt, 50000, {"ttl": 60})
+        om.manage_leg(opt, 50000)
         assert opt.status == LegState.LONG
         assert opt.buy_params["price"] == 50100
         assert opt.buy_params["target"] == 50100 + om.target
@@ -157,14 +157,14 @@ class TestManagerT1:
         opt.instrument_token = 1002
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "TRIGGER PENDING"}]
-        om.manage_leg(opt, 50000, {"ttl": 60})
+        om.manage_leg(opt, 50000)
         assert opt.status == LegState.SHORT
 
     def test_long_does_nothing(self, om):
         opt = Calls()
         opt.status = LegState.LONG
         opt.instrument_token = 1002
-        om.manage_leg(opt, 50000, {"ttl": 60})
+        om.manage_leg(opt, 50000)
         assert opt.status == LegState.LONG
 
     def test_long_to_short_on_sl_hit(self, om):
@@ -176,7 +176,7 @@ class TestManagerT1:
         opt.instrument_token = 1002
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
-        om.manage_leg(opt, 50000, {"ttl": 60})
+        om.manage_leg(opt, 50000)
         assert opt.status == LegState.SHORT
         assert "target" not in opt.buy_params
 
@@ -187,7 +187,7 @@ class TestManagerT1:
         opt.tradingsymbol = "BTC-CE"
         opt.instrument_token = 1002
         om.ws.ltp = {"1002": 260}
-        om.manage_leg(opt, 50000, {"ttl": 60})
+        om.manage_leg(opt, 50000)
         assert opt.status == LegState.SHORT
 
     def test_long_ttl_exit(self, om):
@@ -201,7 +201,7 @@ class TestManagerT1:
         om.ws.ltp = {"1002": 200}
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "PENDING"}]
-        om.manage_leg(opt, 50000, {"ttl": 60})
+        om.manage_leg(opt, 50000)
         assert opt.status == LegState.SHORT
 
     def test_long_ttl_skipped_when_not_in_profit(self, om):
@@ -215,7 +215,7 @@ class TestManagerT1:
         om.ws.ltp = {"1002": 150}
         broker = om.api.api()
         broker.orders = [{"order_id": "b1", "status": "PENDING"}]
-        om.manage_leg(opt, 50000, {"ttl": 60})
+        om.manage_leg(opt, 50000)
         assert opt.status == LegState.LONG
 
 

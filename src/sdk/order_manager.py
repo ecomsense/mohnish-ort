@@ -103,7 +103,7 @@ class OrderManager:
                 return True
         return False
 
-    def manage_leg(self, opt, underlying_price: float, config: dict) -> None:
+    def manage_leg(self, opt, underlying_price: float) -> None:
         opt_price = self.ws.ltp.get(str(opt.instrument_token), 0.0)
         if opt.status == LegState.SHORT:
             if self.is_order_complete(opt.buy_id):
@@ -145,7 +145,7 @@ class OrderManager:
                         "trigger_price": result["price"] + self.stop_loss,
                     }
                 return
-            ttl = config.get("ttl", 0)
+            ttl = self.config.get("ttl", 0)
             if ttl and opt.entry_time:
                 mins = (pendulum.now() - opt.entry_time).in_minutes()
                 if mins >= ttl and opt_price > opt.buy_params.get("price", 0):
