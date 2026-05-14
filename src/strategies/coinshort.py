@@ -186,6 +186,12 @@ class Coinshort:
             print_exc()
 
     def _close_satellite(self, tier: int) -> None:
+        if tier == 1:
+            self.om.api.api().order_cancel(order_id=self.pe.buy_id)
+            self.om.exit_position(self.pe.instrument_token, self.pe.tradingsymbol)
+            self.pe.status = LegState.FLAT
+            log.info(f"Closed T1 PE {self.pe.tradingsymbol}")
+            return
         for s in self._satellites:
             if s["tier"] == tier and s["status"] != LegState.FLAT:
                 self.om.api.api().order_cancel(order_id=s["buy_id"])
