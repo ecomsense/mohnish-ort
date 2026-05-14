@@ -1,6 +1,6 @@
 from broker_ai.delta.wsocket import Wsocket
 from broker_ai.delta.symbols import Symbol
-from sdk.helper import RestApi
+from sdk.restapi import RestApi
 from constants import get_logger
 
 log = get_logger(__name__)

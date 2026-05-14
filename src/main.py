@@ -1,7 +1,7 @@
 from constants import CNFG, S_DATA, ensure_paths, init_logging, get_logger
 from broker_ai.delta.wsocket import Wsocket
 from broker_ai.delta.symbols import Symbol
-from sdk.helper import RestApi
+from sdk.restapi import RestApi
 from core.build import Builder
 from core.engine import Engine
 from toolkit.kokoo import is_time_past, blink

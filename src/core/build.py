@@ -1,6 +1,6 @@
 from broker_ai.delta.symbols import Symbol
 from broker_ai.delta.wsocket import Wsocket
-from sdk.helper import RestApi
+from sdk.restapi import RestApi
 from sdk.order_manager import OrderManager
 from strategies.coinshort import Coinshort
 from constants import get_logger
