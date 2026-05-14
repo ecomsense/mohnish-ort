@@ -1,7 +1,7 @@
 from broker_ai.delta.wsocket import Wsocket
 from broker_ai.delta.symbols import Symbol
 from sdk.restapi import Restapi
-from sdk.models import LegState
+from sdk.models import LegState, Calls
 from constants import get_logger
 import pendulum
 
@@ -38,6 +38,10 @@ class OrderManager:
 
     def _get_price(self, token: str) -> float:
         return self.ws.ltp.get(token, 0.0)
+
+    @staticmethod
+    def _option_type(opt) -> str:
+        return "CE" if isinstance(opt, Calls) else "PE"
 
     def _resolve_option(self, underlying_price: float, option_type: str, distance: int = 0) -> dict:
         rows = self.symbols.filter_by_moneyness(underlying_price, distance, option_type)
@@ -131,7 +135,7 @@ class OrderManager:
             if target and opt_price >= target:
                 log.info(f"{opt.tradingsymbol} target {target} hit at {opt_price}. Shifting strike.")
                 self.api.api().order_modify(order_id=opt.buy_id, order_type="MARKET", price=0.0, quantity=self.quantity)
-                option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
+                option_type = self._option_type(opt)
                 result = self.enter_short(underlying_price, option_type)
                 if "error" not in result:
                     opt.tradingsymbol = result["symbol"]
@@ -151,7 +155,7 @@ class OrderManager:
                 if mins >= ttl and opt_price > opt.buy_params.get("price", 0):
                     log.info(f"{opt.tradingsymbol} TTL {ttl}m exceeded. Shifting strike.")
                     self.api.api().order_modify(order_id=opt.buy_id, order_type="MARKET", price=0.0, quantity=self.quantity)
-                    option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
+                    option_type = self._option_type(opt)
                     result = self.enter_short(underlying_price, option_type)
                     if "error" not in result:
                         opt.tradingsymbol = result["symbol"]
@@ -174,7 +178,7 @@ class OrderManager:
                 opt.buy_params.pop("target", None)
                 opt.entry_time = pendulum.now()
                 opt.buy_params["price"] = entry_price
-                option_type = "CE" if isinstance(opt, __import__("sdk.models", fromlist=["Calls"]).Calls) else "PE"
+                option_type = self._option_type(opt)
                 result = self.enter_short(underlying_price, option_type)
                 if "error" not in result:
                     opt.tradingsymbol = result["symbol"]

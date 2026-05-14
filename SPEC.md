@@ -58,7 +58,7 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 ### Design
 
 - [ ] D1: `manage_leg` reads `opt_price` but never uses it in SHORT→LONG path — dead read
-- [ ] D2: Repeated `__import__("sdk.models", ...).Calls` in `order_manager.py:134,154,177` — extract helper
+- [x] D2: Replaced `__import__` with `_option_type()` helper + `Calls` import in `order_manager.py`
 - [ ] D3: `_close_satellite(tier=1)` logic assumes PE is always the T1 side to close (tied to B1)
 
 ### Code Quality
