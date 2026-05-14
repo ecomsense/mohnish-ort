@@ -51,7 +51,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ### Implement (stubs)
 
-- [ ] Coinshort.initial_entry() is `pass`
 - [ ] TTL/OOB logic in tick() stubbed
 - [ ] T2 protocols (t_upper/lower) not ported to tick pattern
 - [ ] cleanup() is stub

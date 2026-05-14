@@ -27,10 +27,10 @@ class Coinshort:
         self.ce: Calls = Calls()
         self.pe: Puts = Puts()
 
-        self.load_state()
+        self._entry_ce_id: str | None = None
+        self._entry_pe_id: str | None = None
 
-        if self.upper_bound == 0:
-            self.initial_entry()
+        self.load_state()
 
     @property
     def stop_loss(self) -> float:
@@ -99,13 +99,65 @@ class Coinshort:
     def _is_order_complete(self, order_id: str) -> bool:
         return self.om.is_order_complete(order_id)
 
-    def initial_entry(self) -> None:
-        log.info("Executing Initial T1 Neutral Entry")
-        # stub
+    def _enter_straddle(self, underlying_price: float) -> None:
+        log.info(f"Entering T1 neutral straddle at {underlying_price}")
+        ce_result = self.om.enter_short(underlying_price, "CE")
+        if "error" in ce_result:
+            log.warning(f"CE entry failed: {ce_result}")
+            return
+        self.ce.tradingsymbol = ce_result["symbol"]
+        self.ce.instrument_token = int(ce_result["token"])
+        self.ce.short_id = ce_result["short_id"]
+        self.ce.buy_id = ce_result["sl_id"]
+        self.ce.buy_params = {
+            "price": ce_result["price"],
+            "trigger_price": ce_result["price"] + self.stop_loss,
+        }
+        self._entry_ce_id = ce_result["short_id"]
+
+        pe_result = self.om.enter_short(underlying_price, "PE")
+        if "error" in pe_result:
+            log.warning(f"PE entry failed: {pe_result}")
+            return
+        self.pe.tradingsymbol = pe_result["symbol"]
+        self.pe.instrument_token = int(pe_result["token"])
+        self.pe.short_id = pe_result["short_id"]
+        self.pe.buy_id = pe_result["sl_id"]
+        self.pe.buy_params = {
+            "price": pe_result["price"],
+            "trigger_price": pe_result["price"] + self.stop_loss,
+        }
+        self._entry_pe_id = pe_result["short_id"]
+
+        log.info(f"Straddle orders placed. CE: {self._entry_ce_id}, PE: {self._entry_pe_id}")
+
+    def _finalize_entry(self, underlying_price: float) -> None:
+        ce_price = self.api.find_fillprice_from_order_id(self._entry_ce_id)
+        pe_price = self.api.find_fillprice_from_order_id(self._entry_pe_id)
+        if ce_price == 0 or pe_price == 0:
+            return
+        self.current_premium = ce_price + pe_price
+        self.upper_bound = underlying_price + self.current_premium
+        self.lower_bound = underlying_price - self.current_premium
+        self.ce.status = LegState.SHORT
+        self.pe.status = LegState.SHORT
+        self._entry_ce_id = None
+        self._entry_pe_id = None
+        log.info(f"T1 entry complete. Premium={self.current_premium}, "
+                 f"Bounds=[{self.lower_bound}, {self.upper_bound}]")
+        self.save_state()
 
     def tick(self, underlying_price: float) -> None:
         try:
             if underlying_price == 0:
+                return
+
+            if self.upper_bound == 0:
+                if self._entry_ce_id is None:
+                    self._enter_straddle(underlying_price)
+                elif (self._is_order_complete(self._entry_ce_id)
+                      and self._is_order_complete(self._entry_pe_id)):
+                    self._finalize_entry(underlying_price)
                 return
 
             for opt in [self.ce, self.pe]:
@@ -119,7 +171,6 @@ class Coinshort:
 
                 elif opt.status == LegState.LONG:
                     pass
-                    # TTL and OOB checks stub
 
             if underlying_price >= self.upper_bound and self.ce.status == LegState.LONG:
                 self.tier += 1
