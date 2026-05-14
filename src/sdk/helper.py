@@ -1,17 +1,20 @@
 from traceback import print_exc
 from constants import CNFG, get_logger
 from sdk.models import Order
-from broker_ai.fake.fake import Fake
+from broker_ai.delta.delta import Delta
 
 log = get_logger(__name__)
 
 
-def get_broker() -> Fake:
+def get_broker() -> Delta:
     try:
-        broker = Fake(**CNFG)
+        broker = Delta(
+            api_key=CNFG.get("api_key"),
+            api_secret=CNFG.get("secret"),
+        )
         if broker.authenticate():
             return broker
-        raise Exception("unable to authenticate")
+        raise Exception("authentication failed")
     except Exception as e:
         log.error(f"unable to create broker object {e}")
         print_exc()
@@ -19,10 +22,10 @@ def get_broker() -> Fake:
 
 
 class RestApi:
-    api_object: Fake | None = None
+    api_object: Delta | None = None
 
     @classmethod
-    def api(cls) -> Fake:
+    def api(cls) -> Delta:
         if cls.api_object is None:
             cls.api_object = get_broker()
         return cls.api_object

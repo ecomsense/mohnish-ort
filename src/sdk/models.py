@@ -57,8 +57,7 @@ class Order:
             "exchange": read_exchange_from_symbol_yml(strategy_settings),
             "quantity": self.quantity,
             "order_type": "MARKET",
-            "product": "NRML",
-            "validity": "DAY",
+            "product_type": "NRML",
             "tag": "enter",
         }
 

@@ -60,7 +60,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 
 ### Bugs
 
-- [ ] B1: `sdk/helper.py` — `Fake.__init__` references `self.cols` but never defines it. Crashes on `order_place`.
 - [ ] B3: `strategies/coinshort.py` — `set_bounds` accesses `buy_params["price"]` without key check. May KeyError.
 
 ### Design
@@ -80,3 +79,4 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [x] Websocket moved to `broker_ai.delta.wsocket.Wsocket`
 - [x] DI: Coinshort receives config + deps via constructor (Builder builds them)
 - [x] OrderManager — resolves symbols, subscribes quotes, places orders
+- [x] Delta broker wired (replaces Fake)
