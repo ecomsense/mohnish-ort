@@ -68,10 +68,6 @@ Automated trading system for Delta Exchange India. BTC monthly options. Short st
 - [ ] Q3: No `AGENTS.md` with troubleshooting checklist
 - [ ] Q4: No lint config (ruff/mypy) in `pyproject.toml`
 
-### Infra
-
-- [ ] I1: `factory/` directory missing — `ensure_paths()` can't bootstrap settings/symbols on fresh clone
-
 ### Done
 
 - [x] State YAML → JSON
