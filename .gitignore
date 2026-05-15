@@ -153,3 +153,5 @@ style.css
 tailwind.config.js
 yarn-error.log
 yarn.lock
+backtest_*.csv
+backtest_outcome.txt
