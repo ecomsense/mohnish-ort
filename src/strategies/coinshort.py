@@ -32,6 +32,19 @@ class Coinshort:
         self._entry_pe_id: str | None = None
 
         self.load_state()
+        self._resubscribe_tokens()
+
+    def _resubscribe_tokens(self) -> None:
+        tokens = []
+        if self.ce.instrument_token:
+            tokens.append(str(self.ce.instrument_token))
+        if self.pe.instrument_token:
+            tokens.append(str(self.pe.instrument_token))
+        for s in self._satellites:
+            if s["status"] != LegState.FLAT and s.get("instrument_token"):
+                tokens.append(str(s["instrument_token"]))
+        if tokens:
+            self.om.ws.subscribe(tokens)
 
     @property
     def stop_loss(self) -> float:
