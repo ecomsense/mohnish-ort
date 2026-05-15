@@ -27,7 +27,7 @@ from strategies.coinshort import Coinshort
 
 # ── Config ────────────────────────────────────────────────────────────
 SETTINGS = {
-    "strategy": {"stop_loss": 500, "target": 1000, "ttl": 60, "quantity": 1, "slippage": 0.5},
+    "strategy": {"stop_loss": 150, "target": 150, "ttl": 15, "quantity": 1, "slippage": 0.5},
     "base_instrument": {"instrument_token": 1001, "tradingsymbol": "BTC-USD"},
 }
 UNDERLYING_TOKEN = 1001

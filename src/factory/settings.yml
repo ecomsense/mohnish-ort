@@ -6,9 +6,9 @@ program:
 strategy_name: "Coinshort"
 strategy:
   base: BTC-DELTA
-  stop_loss: 500
-  target: 1000
-  ttl: 60
+  stop_loss: 150
+  target: 150
+  ttl: 15
   quantity: 1
   slippage: 0.5
   expiry_offset: 0
