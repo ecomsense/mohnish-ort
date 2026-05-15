@@ -13,15 +13,23 @@ When the market moves against one leg:
 
 **Trader expects:** *"When challenged, don't die — join the move, profit from a reversal, or roll."*
 
-## T2 — Action Zones (Trend Adaptation)
-When the market **keeps trending** (breaches bound + stretched leg is already LONG):
+## T2 — First Breach (Trend Starts)
+The market breaches a bound **and** the stretched leg is already LONG:
 
 1. **Upper breach + CE is LONG** → sell a **put** on the far side (collect premium from the side the market left behind)
 2. **Lower breach + PE is LONG** → sell a **call** on the far side
-3. **Close satellite at tier-2** — the opposite-side leg from T1 (e.g. sell PE at T2 upper breach, close original T1 PE at T3). Now deep OTM since the market has trended away — theta-decayed, cheap to close, premium already banked.
-4. **Expand bounds** outward by new premium
+3. **Expand bounds** outward by new premium
 
-**Trader expects:** *"If the market trends, sell premium on the side it's abandoning. Two breaches later, collect the decaying OTM ghost for pennies. Widen the fence."*
+**Trader expects:** *"Market is moving — sell premium on the side it's leaving. Widen the fence."*
+
+## T3+ — Subsequent Breaches (Trend Continues)
+Each further breach increments the tier. Same pattern every time:
+
+1. **Close satellite at tier-2** — the oldest active satellite from two breaches ago. Now deep OTM (theta fully decayed, cheap to close, premium already banked).
+2. **Sell a new satellite** on the opposite side at the new tier.
+3. **Expand bounds** outward by new premium.
+
+**Trader expects:** *"Trend is real. Bank the decaying ghost from two rounds ago. Keep selling the side the market leaves. Keep widening."*
 
 ## Ideal Scenario
 Range-bound day → theta decays both legs → straddle expires worthless → max profit = full premium collected.
