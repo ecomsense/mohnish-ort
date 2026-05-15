@@ -192,19 +192,9 @@ class BacktestBroker:
             if opt_low <= trig <= opt_high:
                 o["status"] = "COMPLETE"
                 o["average_price"] = trig
-                qty = o["quantity"]
-                tag = o.get("tag", "")
-                if qty >= 2 and tag == "stoploss":
-                    self._fills.append(dict(ts=self.current_ts, ul=self.current_underlying, order_id=o["order_id"]+"_sl", symbol=o["symbol"],
-                                            side=o["side"], quantity=1,
-                                            average_price=trig, tag="sl_hit"))
-                    self._fills.append(dict(ts=self.current_ts, ul=self.current_underlying, order_id=o["order_id"]+"_el", symbol=o["symbol"],
-                                            side=o["side"], quantity=1,
-                                            average_price=trig, tag="enter_long"))
-                else:
-                    self._fills.append(dict(ts=self.current_ts, ul=self.current_underlying, order_id=o["order_id"], symbol=o["symbol"],
-                                            side=o["side"], quantity=qty,
-                                            average_price=trig, tag="sl_hit"))
+                self._fills.append(dict(ts=self.current_ts, ul=self.current_underlying, order_id=o["order_id"], symbol=o["symbol"],
+                                        side=o["side"], quantity=o["quantity"],
+                                        average_price=trig, tag="sl_hit"))
 
     def find_fill_price(self, order_id: str) -> float:
         for f in self._fills:

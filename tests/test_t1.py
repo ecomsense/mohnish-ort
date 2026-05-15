@@ -116,8 +116,8 @@ class TestFinalizeEntry:
         cs.api.find_fillprice_from_order_id = MagicMock(side_effect=[150.0, 120.0])
         cs._finalize_entry(50000)
         assert cs.current_premium == 270.0
-        assert cs.bounds[-1][0] == 50270.0
-        assert cs.bounds[-1][1] == 49730.0
+        assert cs.bounds[-1][0] == 50135.0
+        assert cs.bounds[-1][1] == 49865.0
         assert cs._entry_ce_id is None
 
     def test_skips_if_price_not_available(self, cs):
@@ -296,8 +296,8 @@ class TestT2Protocol:
         cs.tick(52000)
         assert cs.tier == 2
         assert cs.current_premium == 1200
-        assert cs.bounds[-1][0] == 53200
-        assert cs.bounds[-1][1] == 50800
+        assert cs.bounds[-1][0] == 52600
+        assert cs.bounds[-1][1] == 51400
         assert len(cs._satellites) == 1
         assert cs._satellites[0]["tier"] == 2
         assert cs._satellites[0]["option_type"] == "PE"
@@ -318,8 +318,8 @@ class TestT2Protocol:
         cs.tick(48500)
         assert cs.tier == 2
         assert cs.current_premium == 1150
-        assert cs.bounds[-1][0] == 49650
-        assert cs.bounds[-1][1] == 47350
+        assert cs.bounds[-1][0] == 49075
+        assert cs.bounds[-1][1] == 47925
         assert len(cs._satellites) == 1
         assert cs._satellites[0]["tier"] == 2
         assert cs._satellites[0]["option_type"] == "CE"

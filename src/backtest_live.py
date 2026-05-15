@@ -170,19 +170,9 @@ class Broker:
             cp = self.p.estimate(tok, self.cul, ts)
             if cp >= tr:
                 o["status"] = "COMPLETE"; o["average_price"] = tr
-                qty = o["quantity"]
-                tag = o.get("tag", "")
-                if qty >= 2 and tag == "stoploss":
-                    self._f.append(dict(ts=ts, ul=self.cul, order_id=o["order_id"]+"_sl", symbol=o["symbol"],
-                                        side=o["side"], quantity=1,
-                                        average_price=tr, tag="sl_hit"))
-                    self._f.append(dict(ts=ts, ul=self.cul, order_id=o["order_id"]+"_el", symbol=o["symbol"],
-                                        side=o["side"], quantity=1,
-                                        average_price=tr, tag="enter_long"))
-                else:
-                    self._f.append(dict(ts=ts, ul=self.cul, order_id=o["order_id"], symbol=o["symbol"],
-                                        side=o["side"], quantity=qty,
-                                        average_price=tr, tag="sl_hit"))
+                self._f.append(dict(ts=ts, ul=self.cul, order_id=o["order_id"], symbol=o["symbol"],
+                                    side=o["side"], quantity=o["quantity"],
+                                    average_price=tr, tag="sl_hit"))
     def find_fill(self, oid):
         for f in self._f:
             if f["order_id"] == oid: return float(f["average_price"])

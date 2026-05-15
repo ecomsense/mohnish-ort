@@ -68,7 +68,7 @@ class OrderManager:
             "symbol": symbol,
             "side": "BUY",
             "order_type": "SL",
-            "quantity": self.quantity * 2,
+            "quantity": self.quantity,
             "last_price": price,
             "trigger_price": price + self.stop_loss,
             "price": price + self.stop_loss + self.slippage,
@@ -119,6 +119,14 @@ class OrderManager:
                 opt.entry_time = pendulum.now()
                 opt.buy_params["price"] = entry_price
                 opt.buy_params["target"] = entry_price + self.target
+                self.api.enter({
+                    "symbol": opt.tradingsymbol,
+                    "side": "BUY",
+                    "order_type": "MARKET",
+                    "quantity": self.quantity,
+                    "last_price": entry_price,
+                    "tag": "enter_long",
+                })
                 sl_id = self.api.enter({
                     "symbol": opt.tradingsymbol,
                     "side": "SELL",
