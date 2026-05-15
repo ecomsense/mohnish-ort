@@ -22,14 +22,23 @@ The market breaches a bound **and** the stretched leg is already LONG:
 
 **Trader expects:** *"Market is moving — sell premium on the side it's leaving. Widen the fence."*
 
-## T3+ — Subsequent Breaches (Trend Continues)
-Each further breach increments the tier. Same pattern every time:
+## T3 — Second Breach (Close Original Opposite Leg)
+First time `_close_satellite(tier-2=1)` fires. Special case: closes `self.pe` or `self.ce` — the **original T1 opposite-side leg**:
 
-1. **Close satellite at tier-2** — the oldest active satellite from two breaches ago. Now deep OTM (theta fully decayed, cheap to close, premium already banked).
+1. **Close the original T1 opposite leg** — the one left behind when the market first breached. Now deep OTM, fully decayed, premium already collected. Close it for pennies.
+2. **Sell a new satellite** on the opposite side at T3.
+3. **Expand bounds** outward by new premium.
+
+**Trader expects:** *"Trend is real. Bank the decaying T1 ghost. Sell fresh premium on the side the market leaves. Widen again."*
+
+## T4+ — Further Breaches (Rolling Satellite Pattern)
+Each further breach repeats the T3 pattern, but closes from the `_satellites[]` list:
+
+1. **Close satellite at tier-2** — the satellite sold two tiers ago. Deep OTM, cheap to close.
 2. **Sell a new satellite** on the opposite side at the new tier.
 3. **Expand bounds** outward by new premium.
 
-**Trader expects:** *"Trend is real. Bank the decaying ghost from two rounds ago. Keep selling the side the market leaves. Keep widening."*
+**Trader expects:** *"Same pattern: close the oldest decaying ghost. Sell fresh premium on the departing side. Keep widening."*
 
 ## Ideal Scenario
 Range-bound day → theta decays both legs → straddle expires worthless → max profit = full premium collected.
