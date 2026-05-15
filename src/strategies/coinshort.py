@@ -157,8 +157,8 @@ class Coinshort:
         if ce_price == 0 or pe_price == 0:
             return
         self.current_premium = ce_price + pe_price
-        self.bounds.append([underlying_price + self.current_premium,
-                            underlying_price - self.current_premium])
+        self.bounds.append([underlying_price + self.current_premium / 2,
+                            underlying_price - self.current_premium / 2])
         self.ce.status = LegState.SHORT
         self.pe.status = LegState.SHORT
         self._entry_ce_id = None
@@ -237,8 +237,8 @@ class Coinshort:
             },
         })
         self.current_premium += result["price"]
-        self.bounds.append([underlying_price + self.current_premium,
-                            underlying_price - self.current_premium])
+        self.bounds.append([underlying_price + self.current_premium / 2,
+                            underlying_price - self.current_premium / 2])
         b = self.bounds[-1]
         log.info(f"T{self.tier} put sold. New bounds: [{b[1]}, {b[0]}]")
 
@@ -264,8 +264,8 @@ class Coinshort:
             },
         })
         self.current_premium += result["price"]
-        self.bounds.append([underlying_price + self.current_premium,
-                            underlying_price - self.current_premium])
+        self.bounds.append([underlying_price + self.current_premium / 2,
+                            underlying_price - self.current_premium / 2])
         b = self.bounds[-1]
         log.info(f"T{self.tier} call sold. New bounds: [{b[1]}, {b[0]}]")
 
