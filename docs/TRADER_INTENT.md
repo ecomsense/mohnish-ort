@@ -18,10 +18,10 @@ When the market **keeps trending** (breaches bound + stretched leg is already LO
 
 1. **Upper breach + CE is LONG** → sell a **put** on the far side (collect premium from the side the market left behind)
 2. **Lower breach + PE is LONG** → sell a **call** on the far side
-3. **Close the oldest satellite** (tier-2, now deep ITM, premium already collected)
+3. **Close satellite at tier-2** — the opposite-side leg from T1 (e.g. sell PE at T2 upper breach, close original T1 PE at T3). Now deep OTM since the market has trended away — theta-decayed, cheap to close, premium already banked.
 4. **Expand bounds** outward by new premium
 
-**Trader expects:** *"If the market trends, sell the side it's abandoning, close the dying satellite, widen the fence."*
+**Trader expects:** *"If the market trends, sell premium on the side it's abandoning. Two breaches later, collect the decaying OTM ghost for pennies. Widen the fence."*
 
 ## Ideal Scenario
 Range-bound day → theta decays both legs → straddle expires worthless → max profit = full premium collected.
