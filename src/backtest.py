@@ -164,7 +164,7 @@ class BacktestBroker:
                     o["status"] = "COMPLETE"
                     o["average_price"] = o.get("last_price", o.get("trigger_price", 0))
                     self._fills.append(dict(ts=self.current_ts, ul=self.current_underlying, order_id=oid, symbol=o["symbol"],
-                                            side=o["side"], quantity=o["quantity"], average_price=o["average_price"], tag="modify"))
+                                            side=o["side"], quantity=o["quantity"], average_price=o["average_price"], tag=kwargs.get("tag", "modify")))
                 return o
         return None
 

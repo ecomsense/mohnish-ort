@@ -154,7 +154,7 @@ class Broker:
                 o["average_price"] = o.get("last_price", o.get("trigger_price", 0))
                 self._f.append(dict(ts=self.current_ts, ul=self.cul, order_id=oid, symbol=o["symbol"],
                                     side=o["side"], quantity=o["quantity"],
-                                    average_price=o["average_price"], tag="modify"))
+                                    average_price=o["average_price"], tag=kw.get("tag", "modify")))
             return o
         return None
     def order_cancel(self, oid):
