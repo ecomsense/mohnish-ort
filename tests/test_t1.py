@@ -323,3 +323,59 @@ class TestT2Protocol:
         assert len(cs._satellites) == 1
         assert cs._satellites[0]["tier"] == 2
         assert cs._satellites[0]["option_type"] == "CE"
+
+    def test_t3_upper_closes_original_pe_and_sells_new_pe(self, cs):
+        cs.bounds = [[53200, 50800]]
+        cs.current_premium = 1200
+        cs.ce.status = LegState.LONG
+        cs.pe.status = LegState.SHORT
+        cs.pe.tradingsymbol = "PE-50000"
+        cs.pe.instrument_token = 2001
+        cs.pe.buy_id = "b1"
+        cs.pe.buy_params = {}
+        cs.tier = 2
+        cs._satellites = [{"tier": 2, "option_type": "PE", "status": LegState.SHIFTED,
+                           "tradingsymbol": "PE-52000", "instrument_token": 2002,
+                           "buy_id": "b2"}]
+        cs.om.exit_position = MagicMock()
+        cs.om.api.api().order_cancel = MagicMock()
+        cs.om.enter_short = MagicMock(return_value={
+            "symbol": "PE-54000", "token": "2003", "strike": 54000,
+            "price": 250, "short_id": "s3", "sl_id": "b3",
+        })
+        cs.tick(54000)
+        assert cs.tier == 3
+        cs.om.api.api().order_cancel.assert_called_once_with(order_id="b1")
+        cs.om.exit_position.assert_called_once_with(2001, "PE-50000")
+        assert cs.pe.status == LegState.FLAT
+        assert len(cs._satellites) == 2
+        assert cs._satellites[-1]["tier"] == 3
+        assert cs._satellites[-1]["option_type"] == "PE"
+
+    def test_t3_lower_closes_original_ce_and_sells_new_ce(self, cs):
+        cs.bounds = [[49650, 47350]]
+        cs.current_premium = 1150
+        cs.pe.status = LegState.LONG
+        cs.ce.status = LegState.SHORT
+        cs.ce.tradingsymbol = "CE-50000"
+        cs.ce.instrument_token = 1001
+        cs.ce.buy_id = "b1"
+        cs.ce.buy_params = {}
+        cs.tier = 2
+        cs._satellites = [{"tier": 2, "option_type": "CE", "status": LegState.SHIFTED,
+                           "tradingsymbol": "CE-48000", "instrument_token": 1002,
+                           "buy_id": "b2"}]
+        cs.om.exit_position = MagicMock()
+        cs.om.api.api().order_cancel = MagicMock()
+        cs.om.enter_short = MagicMock(return_value={
+            "symbol": "CE-46000", "token": "1003", "strike": 46000,
+            "price": 180, "short_id": "s3", "sl_id": "b3",
+        })
+        cs.tick(46500)
+        assert cs.tier == 3
+        cs.om.api.api().order_cancel.assert_called_once_with(order_id="b1")
+        cs.om.exit_position.assert_called_once_with(1001, "CE-50000")
+        assert cs.ce.status == LegState.FLAT
+        assert len(cs._satellites) == 2
+        assert cs._satellites[-1]["tier"] == 3
+        assert cs._satellites[-1]["option_type"] == "CE"
