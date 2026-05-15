@@ -5,8 +5,13 @@ Usage:
     uv run python -B src/backtest.py
 """
 
-import json, os, sys, csv, types, math
-from datetime import datetime
+import json
+import os
+import sys
+import csv
+import types
+import math
+import pendulum
 from traceback import print_exc
 from unittest.mock import MagicMock
 
@@ -146,7 +151,7 @@ class BacktestBroker:
                      last_price=last_px, average_price=fill, tag=kwargs.get("tag", ""))
         self._orders.append(order)
         if is_market:
-            self._fills.append(dict(ts=self.current_ts, order_id=oid, symbol=symbol, side=side,
+            self._fills.append(dict(ts=self.current_ts, ul=self.current_underlying, order_id=oid, symbol=symbol, side=side,
                                     quantity=qty, average_price=fill, tag=kwargs.get("tag", "")))
         return oid
 
@@ -158,7 +163,7 @@ class BacktestBroker:
                     o["order_type"] = "MARKET"
                     o["status"] = "COMPLETE"
                     o["average_price"] = o.get("last_price", o.get("trigger_price", 0))
-                    self._fills.append(dict(ts=self.current_ts, order_id=oid, symbol=o["symbol"],
+                    self._fills.append(dict(ts=self.current_ts, ul=self.current_underlying, order_id=oid, symbol=o["symbol"],
                                             side=o["side"], quantity=o["quantity"], average_price=o["average_price"], tag="modify"))
                 return o
         return None
@@ -187,7 +192,7 @@ class BacktestBroker:
             if opt_low <= trig <= opt_high:
                 o["status"] = "COMPLETE"
                 o["average_price"] = trig
-                self._fills.append(dict(ts=self.current_ts, order_id=o["order_id"], symbol=o["symbol"],
+                self._fills.append(dict(ts=self.current_ts, ul=self.current_underlying, order_id=o["order_id"], symbol=o["symbol"],
                                         side=o["side"], quantity=o["quantity"],
                                         average_price=trig, tag="sl_hit"))
 
@@ -333,8 +338,8 @@ def run() -> None:
             break
 
         if idx % 1440 == 0 or idx == len(candles) - 1:
-            dt = datetime.fromtimestamp(ts)
-            print(f"  [{dt:%m-%d %H:%M}] T{strategy.tier} "
+            dt = pendulum.from_timestamp(ts)
+            print(f"  [{dt.format('MM-DD HH:mm')}] T{strategy.tier} "
                   f"CE={strategy.ce.status.name if strategy.ce.status else 'FLAT':>7} "
                   f"PE={strategy.pe.status.name if strategy.pe.status else 'FLAT':>7} "
                   f"@{close:.0f} bnd={strategy.bounds[-1] if strategy.bounds else '[]'} "
@@ -367,7 +372,7 @@ def run() -> None:
         print(f"  MTM {label}: entry={e['entry_prem']:.0f} current={current:.0f} pnl={pnl:+.0f}")
         return pnl
 
-    print(f"\n  --- Open positions MTM ---")
+    print("\n  --- Open positions MTM ---")
     mtm += mtm_position(strategy.ce.instrument_token, strategy.ce.status, "CE")
     mtm += mtm_position(strategy.pe.instrument_token, strategy.pe.status, "PE")
     for sat in strategy._satellites:
@@ -378,7 +383,7 @@ def run() -> None:
     total_pnl = net + mtm
 
     print(f"\n{'='*60}")
-    print(f"BACKTEST SUMMARY")
+    print("BACKTEST SUMMARY")
     print(f"{'='*60}")
     print(f"  Candles:     {len(candles)}")
     print(f"  Final tier:  T{strategy.tier}")
@@ -400,6 +405,34 @@ def run() -> None:
             w = csv.DictWriter(f, fieldnames=list(broker._fills[0].keys()))
             w.writeheader()
             w.writerows(broker._fills)
+
+    # Write tradebook CSV with reasons
+    tradebook_path = os.path.join(bt_constants.S_DATA, "tradebook_april.csv")
+    with open(tradebook_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["time", "datetime", "underlying", "side", "symbol", "qty", "opt_price", "reason", "action"])
+        for fill in broker._fills:
+            ts = fill.get("ts", 0)
+            dt = pendulum.from_timestamp(ts).format("MM-DD HH:mm") if ts else ""
+            ul = fill.get("ul", "")
+            side = fill.get("side", "")
+            sym = fill.get("symbol", "")
+            qty = fill.get("quantity", 1)
+            px = fill.get("average_price", 0)
+            tag = fill.get("tag", "")
+
+            # Map tag to readable reason
+            reason_map = {
+                "": "ENTER_SHORT",
+                "stoploss": "PLACE_SL",
+                "stoploss_long": "PLACE_SL_LONG",
+                "sl_hit": "STOP_LOSS_TRIGGERED",
+                "modify": "MODIFY_TO_MARKET",
+                "exit": "EXIT_POSITION",
+                "exit_long": "EXIT_LONG",
+            }
+            action = reason_map.get(tag, tag)
+            w.writerow([ts, dt, ul, side, sym, qty, px, tag, action])
 
     with open(os.path.join(bt_constants.S_DATA, "backtest_outcome.txt"), "w") as f:
         f.write(f"Candles: {len(candles)}\nFinal tier: T{strategy.tier}\n")
