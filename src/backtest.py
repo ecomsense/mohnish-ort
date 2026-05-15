@@ -5,7 +5,7 @@ Usage:
     uv run python -B src/backtest.py
 """
 
-import json, os, sys, csv, types
+import json, os, sys, csv, types, math
 from datetime import datetime
 from traceback import print_exc
 from unittest.mock import MagicMock
@@ -55,24 +55,57 @@ class MockWsocket:
         pass
 
 
+def _norm_cdf(x):
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
 class OptionPricer:
-    PREMIUM_PCT = 0.012
+    """Black-Scholes pricer for April 24 monthly expiry at 70% IV."""
+
+    EXPIRY_TS = 1777032000  # 2026-04-24 12:00 UTC
+    IV = 0.70
 
     def __init__(self):
         self.entries: dict[str, dict] = {}
 
-    def track(self, token: str, strike: int, underlying: float, premium: float, opt_type: str) -> None:
-        self.entries[str(token)] = dict(strike=strike, entry_ul=underlying,
-                                        entry_prem=premium, opt_type=opt_type)
+    def _dte(self, ts: int) -> float:
+        return max(1, self.EXPIRY_TS - ts) / 365.25 / 86400
 
-    def estimate(self, token: str, underlying: float) -> float:
+    def bs_price(self, strike: int, underlying: float, dte: float, opt_type: str) -> float:
+        if dte <= 0:
+            return max(0, underlying - strike) if opt_type == "CE" else max(0, strike - underlying)
+        S, K, T = underlying, float(strike), dte
+        if S <= 0 or K <= 0 or T <= 0:
+            return 0.0
+        v = self.IV
+        d1 = (math.log(S / K) + 0.5 * v * v * T) / (v * math.sqrt(T))
+        d2 = d1 - v * math.sqrt(T)
+        if opt_type == "CE":
+            return S * _norm_cdf(d1) - K * _norm_cdf(d2)
+        else:
+            return K * _norm_cdf(-d2) - S * _norm_cdf(-d1)
+
+    def track(self, token: str, strike: int, underlying: float, premium: float, opt_type: str, ts: int) -> None:
+        self.entries[str(token)] = dict(strike=strike, entry_ul=underlying, entry_prem=premium,
+                                        opt_type=opt_type, entry_ts=ts)
+
+    def estimate(self, token: str, underlying: float, ts: int) -> float:
         e = self.entries.get(str(token))
         if not e:
-            return 0.0
-        intrinsic = max(0, underlying - e["strike"]) if e["opt_type"] == "CE" else max(0, e["strike"] - underlying)
-        delta = 0.5
-        price = max(intrinsic, e["entry_prem"] + delta * (underlying - e["entry_ul"]))
-        return max(price, 0.0)
+            atm_strike = round(underlying / 1000) * 1000
+            dte = self._dte(ts)
+            return self.bs_price(atm_strike, underlying, dte, "CE")
+        dte = self._dte(ts)
+        return self.bs_price(e["strike"], underlying, dte, e["opt_type"])
+
+    def estimate_range(self, token: str, ul_low: float, ul_high: float, ts: int) -> tuple[float, float]:
+        e = self.entries.get(str(token))
+        if not e:
+            return (0.0, 0.0)
+        dte = self._dte(ts)
+        lo = self.bs_price(e["strike"], ul_low, dte, e["opt_type"])
+        hi = self.bs_price(e["strike"], ul_high, dte, e["opt_type"])
+        return (min(lo, hi), max(lo, hi))
 
 
 class BacktestBroker:
@@ -82,6 +115,7 @@ class BacktestBroker:
         self.pricer = pricer
         self._sym_to_token: dict[str, str] = {}
         self.current_underlying: float = 0.0
+        self.current_ts: int = 0
 
     def authenticate(self) -> bool:
         return True
@@ -112,7 +146,7 @@ class BacktestBroker:
                      last_price=last_px, average_price=fill, tag=kwargs.get("tag", ""))
         self._orders.append(order)
         if is_market:
-            self._fills.append(dict(order_id=oid, symbol=symbol, side=side,
+            self._fills.append(dict(ts=self.current_ts, order_id=oid, symbol=symbol, side=side,
                                     quantity=qty, average_price=fill, tag=kwargs.get("tag", "")))
         return oid
 
@@ -124,8 +158,8 @@ class BacktestBroker:
                     o["order_type"] = "MARKET"
                     o["status"] = "COMPLETE"
                     o["average_price"] = o.get("last_price", o.get("trigger_price", 0))
-                    self._fills.append(dict(order_id=oid, symbol=o["symbol"], side=o["side"],
-                                            quantity=o["quantity"], average_price=o["average_price"], tag="modify"))
+                    self._fills.append(dict(ts=self.current_ts, order_id=oid, symbol=o["symbol"],
+                                            side=o["side"], quantity=o["quantity"], average_price=o["average_price"], tag="modify"))
                 return o
         return None
 
@@ -142,19 +176,18 @@ class BacktestBroker:
     def _token_for_symbol(self, symbol: str) -> str | None:
         return self._sym_to_token.get(symbol)
 
-    def simulate_sl(self, low_ul: float, high_ul: float) -> None:
+    def simulate_sl(self, low_ul: float, high_ul: float, ts: int = 0) -> None:
         pending = [o for o in self._orders if o["status"] == "TRIGGER PENDING" and o.get("trigger_price", 0) > 0]
         for o in pending:
             token = self._token_for_symbol(o["symbol"])
             if not token:
                 continue
-            opt_low = self.pricer.estimate(token, low_ul)
-            opt_high = self.pricer.estimate(token, high_ul)
+            opt_low, opt_high = self.pricer.estimate_range(token, low_ul, high_ul, ts or self.current_ts)
             trig = o["trigger_price"]
             if opt_low <= trig <= opt_high:
                 o["status"] = "COMPLETE"
                 o["average_price"] = trig
-                self._fills.append(dict(order_id=o["order_id"], symbol=o["symbol"],
+                self._fills.append(dict(ts=self.current_ts, order_id=o["order_id"], symbol=o["symbol"],
                                         side=o["side"], quantity=o["quantity"],
                                         average_price=trig, tag="sl_hit"))
 
@@ -240,8 +273,8 @@ def run() -> None:
 
     def _bt_get_price(token: str) -> float:
         px = ws.ltp.get(token, 0.0)
-        if px == 0.0:
-            px = broker.current_underlying * 0.012 if broker.current_underlying else 0.0
+        if px == 0.0 and broker.current_underlying:
+            px = pricer.estimate(token, broker.current_underlying, broker.current_ts)
             ws.ltp[token] = px
         return px
     om._get_price = _bt_get_price
@@ -254,10 +287,10 @@ def run() -> None:
         if "error" not in result:
             token = result["token"]
             broker.set_sym_token(result["symbol"], token)
-            pricer.track(token, result["strike"], underlying_price, result["price"], option_type)
+            pricer.track(token, result["strike"], underlying_price, result["price"], option_type, broker.current_ts)
             logger.trade("ENTER_SHORT", result["symbol"], "SELL",
                          config["quantity"], result["price"],
-                         f"{option_type}_entry", int(datetime.now().timestamp()))
+                         f"{option_type}_entry", broker.current_ts)
         return result
     om.enter_short = _tracked_enter
 
@@ -284,12 +317,13 @@ def run() -> None:
         high, low, close = candle["high"], candle["low"], candle["close"]
         ws.ltp[str(UNDERLYING_TOKEN)] = close
         broker.current_underlying = close
+        broker.current_ts = ts
 
         for tok in list(ws.ltp.keys()):
             if tok != str(UNDERLYING_TOKEN):
-                ws.ltp[tok] = pricer.estimate(tok, close)
+                ws.ltp[tok] = pricer.estimate(tok, close, ts)
 
-        broker.simulate_sl(low, high)
+        broker.simulate_sl(low, high, ts)
 
         try:
             strategy.tick(close)
@@ -315,6 +349,34 @@ def run() -> None:
         q, p = int(f.get("quantity", 1)), float(f.get("average_price", 0))
         net += p * q if f.get("side") == "SELL" else -p * q
 
+    # MTM of open positions (unrealized P&L from theta decay)
+    last_ts = candles[-1]["time"]
+    last_close = candles[-1]["close"]
+    mtm = 0.0
+    def mtm_position(token, status, label):
+        if status not in (LegState.SHORT, LegState.LONG, LegState.SHIFTED):
+            return 0.0
+        e = pricer.entries.get(str(token))
+        if not e:
+            return 0.0
+        current = pricer.bs_price(e["strike"], last_close, pricer._dte(last_ts), e["opt_type"])
+        if status in (LegState.SHORT, LegState.SHIFTED):
+            pnl = e["entry_prem"] - current
+        else:
+            pnl = current - e["entry_prem"]
+        print(f"  MTM {label}: entry={e['entry_prem']:.0f} current={current:.0f} pnl={pnl:+.0f}")
+        return pnl
+
+    print(f"\n  --- Open positions MTM ---")
+    mtm += mtm_position(strategy.ce.instrument_token, strategy.ce.status, "CE")
+    mtm += mtm_position(strategy.pe.instrument_token, strategy.pe.status, "PE")
+    for sat in strategy._satellites:
+        if sat["status"] in (LegState.SHORT, LegState.SHIFTED):
+            tok = str(sat.get("instrument_token", 0))
+            mtm += mtm_position(tok, sat["status"], f"SAT T{sat.get('tier','?')} {sat.get('option_type','?')}")
+
+    total_pnl = net + mtm
+
     print(f"\n{'='*60}")
     print(f"BACKTEST SUMMARY")
     print(f"{'='*60}")
@@ -327,12 +389,23 @@ def run() -> None:
     print(f"  Satellites:  {len(strategy._satellites)}")
     print(f"  Net P&L:     {net:.0f}")
     print(f"  Fills:       {len(broker._fills)}")
+    print(f"  Realized P&L: {net:.0f}")
+    print(f"  MTM P&L:      {mtm:+.0f}")
+    print(f"  Total P&L:    {total_pnl:.0f}")
+
+    # Write fills CSV for daily P&L analysis
+    fills_path = os.path.join(bt_constants.S_DATA, "backtest_fills.csv")
+    with open(fills_path, "w", newline="") as f:
+        if broker._fills:
+            w = csv.DictWriter(f, fieldnames=list(broker._fills[0].keys()))
+            w.writeheader()
+            w.writerows(broker._fills)
 
     with open(os.path.join(bt_constants.S_DATA, "backtest_outcome.txt"), "w") as f:
         f.write(f"Candles: {len(candles)}\nFinal tier: T{strategy.tier}\n")
         f.write(f"CE: {strategy.ce.status}\nPE: {strategy.pe.status}\n")
         f.write(f"Bounds: {strategy.bounds}\nPremium: {strategy.current_premium:.0f}\n")
-        f.write(f"Satellites: {len(strategy._satellites)}\nNet P&L: {net:.0f}\nFills: {len(broker._fills)}\n")
+        f.write(f"Satellites: {len(strategy._satellites)}\nNet P&L: {net:.0f}\nMTM P&L: {mtm:+.0f}\nTotal P&L: {total_pnl:.0f}\nFills: {len(broker._fills)}\n")
         f.write("\n=== FILL LOG ===\n")
         for fill in broker._fills:
             f.write(f"  {fill.get('order_id',''):>14} {fill.get('side',''):>5} {fill.get('symbol',''):>22} "
