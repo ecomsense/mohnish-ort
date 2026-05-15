@@ -9,6 +9,17 @@
 ## Core Bet
 The trader believes **BTC will be range-bound** (low volatility). They sell a short straddle (ATM call + put) to collect premium (theta decay). Profit when price stays within `[entry ± premium]`.
 
+## Order Discipline — Never Cancel
+Orders are **never cancelled**. They either:
+
+| Scenario | What happens |
+|----------|-------------|
+| SL not hit | Stays in place. Protects the position. |
+| SL hit | Fills naturally → state machine processes the transition. |
+| Need to exit early (target/TTL/satellite close) | **Modify the existing SL to MARKET.** It fills immediately, closing the position. |
+
+The SL is always there. When you need to exit, turn it into a market order. No cancels, no separate exit orders, no races.
+
 ## T1 — Rolling SAR (Mean Reversion)
 Each leg independently follows this cycle:
 
@@ -32,24 +43,24 @@ Then: expand bounds outward by new premium.
 **Trader expects:** *"Trend detected — sell premium on the counter-leg (the side the market left behind). Widen the fence."*
 
 ## T3 (upper) / T-3 (lower) — Second Same-Direction Breach
-First time `_close_satellite(tier-2=1)` fires. Closes the original T1 counter-leg:
+First time `_close_satellite(tier-2=1)` fires. Exits the original T1 counter-leg by modifying its SL to MARKET:
 
-| Sequence | Close this |
-|----------|------------|
-| T3: second upper breach | Close original T1 PE (counter-leg to stretched CE). Now deep OTM, fully decayed. |
-| T-3: second lower breach | Close original T1 CE (counter-leg to stretched PE). Now deep OTM, fully decayed. |
+| Sequence | Exit this |
+|----------|-----------|
+| T3: second upper breach | Modify T1 PE SL → MARKET (counter-leg, deep OTM, fully decayed). Captures remaining premium. |
+| T-3: second lower breach | Modify T1 CE SL → MARKET (counter-leg, deep OTM, fully decayed). Captures remaining premium. |
 
 Then: sell new counter-leg satellite at current tier, expand bounds.
 
 **Trader expects:** *"Trend is real. Bank the decaying T1 counter-leg ghost. Sell fresh premium on the counter-leg. Widen again."*
 
 ## T4+ (upper) / T-4+ (lower) — Further Same-Direction Breaches
-Same pattern as T3/T-3, but closes from `_satellites[]` list instead of the original T1 leg:
+Same pattern as T3/T-3, but exits from `_satellites[]` list instead of the original T1 leg:
 
-| Sequence | Close this |
-|----------|------------|
-| T4 | Close T2 PE satellite (tier-2). Deep OTM. |
-| T-4 | Close T-2 CE satellite (tier-2). Deep OTM. |
+| Sequence | Exit this |
+|----------|-----------|
+| T4 | Modify T2 PE satellite SL → MARKET (tier-2, deep OTM). |
+| T-4 | Modify T-2 CE satellite SL → MARKET (tier-2, deep OTM). |
 
 Then: sell new counter-leg satellite, expand bounds.
 

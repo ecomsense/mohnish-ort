@@ -337,16 +337,15 @@ class TestT2Protocol:
         cs._satellites = [{"tier": 2, "option_type": "PE", "status": LegState.SHIFTED,
                            "tradingsymbol": "PE-52000", "instrument_token": 2002,
                            "buy_id": "b2"}]
-        cs.om.exit_position = MagicMock()
-        cs.om.api.api().order_cancel = MagicMock()
+        cs.om.api.api().order_modify = MagicMock()
         cs.om.enter_short = MagicMock(return_value={
             "symbol": "PE-54000", "token": "2003", "strike": 54000,
             "price": 250, "short_id": "s3", "sl_id": "b3",
         })
         cs.tick(54000)
         assert cs.tier == 3
-        cs.om.api.api().order_cancel.assert_called_once_with(order_id="b1")
-        cs.om.exit_position.assert_called_once_with(2001, "PE-50000")
+        cs.om.api.api().order_modify.assert_called_once_with(
+            order_id="b1", order_type="MARKET", price=0.0, quantity=1)
         assert cs.pe.status == LegState.FLAT
         assert len(cs._satellites) == 2
         assert cs._satellites[-1]["tier"] == 3
@@ -365,16 +364,15 @@ class TestT2Protocol:
         cs._satellites = [{"tier": 2, "option_type": "CE", "status": LegState.SHIFTED,
                            "tradingsymbol": "CE-48000", "instrument_token": 1002,
                            "buy_id": "b2"}]
-        cs.om.exit_position = MagicMock()
-        cs.om.api.api().order_cancel = MagicMock()
+        cs.om.api.api().order_modify = MagicMock()
         cs.om.enter_short = MagicMock(return_value={
             "symbol": "CE-46000", "token": "1003", "strike": 46000,
             "price": 180, "short_id": "s3", "sl_id": "b3",
         })
         cs.tick(46500)
         assert cs.tier == 3
-        cs.om.api.api().order_cancel.assert_called_once_with(order_id="b1")
-        cs.om.exit_position.assert_called_once_with(1001, "CE-50000")
+        cs.om.api.api().order_modify.assert_called_once_with(
+            order_id="b1", order_type="MARKET", price=0.0, quantity=1)
         assert cs.ce.status == LegState.FLAT
         assert len(cs._satellites) == 2
         assert cs._satellites[-1]["tier"] == 3
