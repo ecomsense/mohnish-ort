@@ -14,15 +14,23 @@ def root() -> None:
         log = get_logger(__name__)
         log.info("HAPPY TRADING - COINSHORT STRATEGY")
 
+        api_key = CNFG.get("api_key")
+        api_secret = CNFG.get("secret")
+        missing = []
+        if not api_key:
+            missing.append("api_key")
+        if not api_secret:
+            missing.append("secret")
+        if missing:
+            log.error(f"Missing credentials: {', '.join(missing)}. Cannot start.")
+            return
+
         entry_time: str = CNFG.get("program", {}).get("start", "09:15")
         while not is_time_past(entry_time):
             print(f"z #@! zZZ sleeping till {entry_time}")
             blink()
 
-        ws = Wsocket(
-            api_key=CNFG.get("api_key"),
-            api_secret=CNFG.get("secret"),
-        )
+        ws = Wsocket(api_key=api_key, api_secret=api_secret)
         ws.connect(threaded=True)
 
         config = CNFG.get("strategy", {})

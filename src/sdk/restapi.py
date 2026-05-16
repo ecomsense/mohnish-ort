@@ -10,16 +10,22 @@ SANDBOX_URL = "https://api-testnet.india.delta.exchange"
 
 
 def get_broker() -> Delta:
+    api_key = CNFG.get("api_key")
+    api_secret = CNFG.get("secret")
+    missing = []
+    if not api_key:
+        missing.append("api_key")
+    if not api_secret:
+        missing.append("secret")
+    if missing:
+        raise RuntimeError(f"Missing credentials: {', '.join(missing)}. Check credentials file.")
     try:
         if CNFG.get("broker") == "delta-sandbox":
             api_helper.BASE_URL = SANDBOX_URL
-        broker = Delta(
-            api_key=CNFG.get("api_key"),
-            api_secret=CNFG.get("secret"),
-        )
+        broker = Delta(api_key=api_key, api_secret=api_secret)
         if broker.authenticate():
             return broker
-        raise Exception("authentication failed")
+        raise RuntimeError("Delta Exchange authentication failed — check API key/secret validity")
     except Exception as e:
         log.error(f"unable to create broker object {e}")
         print_exc()
