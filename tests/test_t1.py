@@ -144,7 +144,7 @@ class TestManagerT1:
         opt.tradingsymbol = "BTC-CE"
         opt.instrument_token = 1002
         broker = om.api.api()
-        broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
+        broker.trades = [{"order_id": "b1"}]
         om.manage_leg(opt, 50000)
         assert opt.status == LegState.LONG
         assert opt.buy_params["price"] == 50100
@@ -176,7 +176,7 @@ class TestManagerT1:
         opt.tradingsymbol = "BTC-CE"
         opt.instrument_token = 1002
         broker = om.api.api()
-        broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
+        broker.trades = [{"order_id": "b1"}]
         om.manage_leg(opt, 50000)
         assert opt.status == LegState.SHORT
         assert "target" not in opt.buy_params
@@ -225,7 +225,7 @@ class TestManagerT1:
         opt.buy_id = "b1"
         opt.instrument_token = 1002
         broker = om.api.api()
-        broker.orders = [{"order_id": "b1", "status": "COMPLETE"}]
+        broker.trades = [{"order_id": "b1"}]
         om.manage_leg(opt, 50000)
         assert opt.status == LegState.FLAT
 

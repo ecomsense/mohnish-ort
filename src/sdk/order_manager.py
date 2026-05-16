@@ -101,9 +101,10 @@ class OrderManager:
         log.info(f"Exited {symbol} @ {price}")
 
     def is_order_complete(self, order_id: str) -> bool:
-        done = {"COMPLETE", "FILLED"}
-        for o in self.api.api().orders:
-            if o.get("order_id") == order_id and o.get("status") in done:
+        if not order_id:
+            return False
+        for fill in self.api.api().trades:
+            if fill.get("order_id") == order_id:
                 return True
         return False
 
