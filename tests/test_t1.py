@@ -74,6 +74,16 @@ class TestEnterStraddle:
         cs._enter_straddle(50000)
         assert cs._entry_ce_id is None
 
+    def test_rolls_back_ce_when_pe_fails(self, cs, om):
+        om.enter_short = MagicMock(side_effect=[
+            {"symbol": "BTC-50000-CE", "token": "1002", "strike": 50000,
+             "price": 150.0, "short_id": "s1", "sl_id": "b1"},
+            {"error": "no_quote"},
+        ])
+        cs._enter_straddle(50000)
+        assert cs._entry_ce_id is None
+        assert cs.ce.instrument_token == 0
+
 
 class TestTickEntry:
     def test_enters_straddle_on_first_tick(self, cs):

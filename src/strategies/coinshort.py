@@ -137,7 +137,11 @@ class Coinshort:
 
         pe_result = self.om.enter_short(underlying_price, "PE")
         if "error" in pe_result:
-            log.warning(f"PE entry failed: {pe_result}")
+            log.warning(f"PE entry failed after CE entry, rolling back CE: {pe_result}")
+            self.om.api.api().order_cancel(self.ce.buy_id)
+            self.om.exit_position(str(self.ce.instrument_token), self.ce.tradingsymbol)
+            self.ce = Calls()
+            self._entry_ce_id = None
             return
         self.pe.tradingsymbol = pe_result["symbol"]
         self.pe.instrument_token = int(pe_result["token"])
