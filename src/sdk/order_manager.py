@@ -14,6 +14,10 @@ class OrderManager:
         self.api = api
         self.config = config
         self._subscribed: set[str] = set()
+        self._fill_cache: list[dict] = []
+
+    def refresh_fill_cache(self) -> None:
+        self._fill_cache = self.api.api().trades
 
     @property
     def quantity(self) -> int:
@@ -108,10 +112,20 @@ class OrderManager:
                 return True
         return False
 
+    def _fill_qty(self, order_id: str) -> float:
+        return sum(
+            t.get("fill_quantity", t.get("quantity", 1))
+            for t in self._fill_cache
+            if t.get("order_id") == order_id
+        )
+
     def manage_leg(self, opt, underlying_price: float) -> None:
         opt_price = self.ws.ltp.get(str(opt.instrument_token), 0.0)
         if opt.status == LegState.SHORT:
             if self.is_order_complete(opt.buy_id):
+                self.refresh_fill_cache()
+                if self._fill_qty(opt.buy_id) < self.quantity:
+                    return
                 log.info(f"{opt.tradingsymbol} SAR hit. Flipping to LONG.")
                 entry_price = opt.buy_params.get("trigger_price", 0) or 0
                 if entry_price == 0:
@@ -179,6 +193,9 @@ class OrderManager:
                         }
                     return
             if self.is_order_complete(opt.buy_id):
+                self.refresh_fill_cache()
+                if self._fill_qty(opt.buy_id) < self.quantity:
+                    return
                 log.info(f"{opt.tradingsymbol} SAR hit. Flipping to SHORT.")
                 entry_price = opt.buy_params.get("trigger_price", 0) or 0
                 if entry_price == 0:

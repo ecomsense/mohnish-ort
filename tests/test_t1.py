@@ -154,11 +154,23 @@ class TestManagerT1:
         opt.tradingsymbol = "BTC-CE"
         opt.instrument_token = 1002
         broker = om.api.api()
-        broker.trades = [{"order_id": "b1"}]
+        broker.trades = [{"order_id": "b1", "fill_quantity": 1}]
         om.manage_leg(opt, 50000)
         assert opt.status == LegState.LONG
         assert opt.buy_params["price"] == 50100
         assert opt.buy_params["target"] == 50100 + om.target
+
+    def test_short_skips_on_partial_sl_fill(self, om):
+        opt = Calls()
+        opt.status = LegState.SHORT
+        opt.buy_id = "b1"
+        opt.buy_params = {"trigger_price": 50100, "price": 150.0}
+        opt.tradingsymbol = "BTC-CE"
+        opt.instrument_token = 1002
+        broker = om.api.api()
+        broker.trades = [{"order_id": "b1", "fill_quantity": 0.5}]
+        om.manage_leg(opt, 50000)
+        assert opt.status == LegState.SHORT
 
     def test_no_change_when_sl_not_hit(self, om):
         opt = Calls()
@@ -186,10 +198,22 @@ class TestManagerT1:
         opt.tradingsymbol = "BTC-CE"
         opt.instrument_token = 1002
         broker = om.api.api()
-        broker.trades = [{"order_id": "b1"}]
+        broker.trades = [{"order_id": "b1", "fill_quantity": 1}]
         om.manage_leg(opt, 50000)
         assert opt.status == LegState.SHORT
         assert "target" not in opt.buy_params
+
+    def test_long_skips_on_partial_sl_fill(self, om):
+        opt = Calls()
+        opt.status = LegState.LONG
+        opt.buy_id = "b1"
+        opt.buy_params = {"trigger_price": 49500, "price": 50100}
+        opt.tradingsymbol = "BTC-CE"
+        opt.instrument_token = 1002
+        broker = om.api.api()
+        broker.trades = [{"order_id": "b1", "fill_quantity": 0.5}]
+        om.manage_leg(opt, 50000)
+        assert opt.status == LegState.LONG
 
     def test_long_target_hit_shifts_strike(self, om):
         opt = Calls()
