@@ -82,11 +82,17 @@ class RealPricer:
         prices = self.price_db.get(symbol, {})
         if not prices:
             return 0.0
-        timestamps = sorted(prices.keys())
-        idx = bisect.bisect_right(timestamps, ts) - 1
+        tss = sorted(int(k) for k in prices.keys())
+        idx = bisect.bisect_right(tss, ts) - 1
         if idx < 0:
-            idx = 0
-        return prices[timestamps[idx]]
+            return float(prices[str(tss[0])])
+        if idx >= len(tss) - 1:
+            return float(prices[str(tss[-1])])
+        t0, t1 = tss[idx], tss[idx + 1]
+        if t1 <= t0:
+            return float(prices[str(t0)])
+        p0, p1 = float(prices[str(t0)]), float(prices[str(t1)])
+        return p0 + (p1 - p0) * (ts - t0) / (t1 - t0)
 
     def estimate(self, token, underlying, ts):
         sym = self.token_to_symbol.get(str(token), str(token))
@@ -195,44 +201,34 @@ class Restapi:
 
 def run():
     data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-    resolution = "1h"  # 1h candles
+    resolution = "1m"
 
-    # Date range: Apr 25 (day after Apr 24 monthly expiry) to May 16 (today)
     start_dt = pendulum.datetime(2026, 4, 25, 0, 0, tz='UTC')
     end_dt = pendulum.datetime(2026, 5, 16, 0, 0, tz='UTC')
-    start_ts = int(start_dt.timestamp())
-    end_ts = int(end_dt.timestamp())
 
-    print("Fetching BTC 1h candles...")
-    btc_candles = fetch_btc_candles(resolution, start_ts, end_ts)
-    btc_candles.sort(key=lambda c: c["time"])  # ascending order
-    print(f"  {len(btc_candles)} BTC candles from {pendulum.from_timestamp(btc_candles[0]['time']).format('YYYY-MM-DD')} to {pendulum.from_timestamp(btc_candles[-1]['time']).format('YYYY-MM-DD')}")
+    # Load local 1m BTC candles
+    print("Loading 1m BTC candles...")
+    with open(os.path.join(data_dir, "btc_1m_may2026.json")) as f:
+        btc_candles = json.load(f)
+    print(f"  {len(btc_candles)} candles from {pendulum.from_timestamp(btc_candles[0]['time']).format('YYYY-MM-DD HH:mm')} to {pendulum.from_timestamp(btc_candles[-1]['time']).format('YYYY-MM-DD HH:mm')}")
 
-    print("Fetching May 29 option chain...")
-    chain = fetch_option_chain()
-    print(f"  {len(chain)} option symbols")
+    # Load cached 1h option prices
+    print("Loading cached option prices...")
+    with open(os.path.join(data_dir, "option_prices_may.json")) as f:
+        price_db = json.load(f)
+    print(f"  {len(price_db)} symbols, {sum(len(v) for v in price_db.values())} price points")
 
-    # Determine ATM strike range: BTC ranged ~68000-79000
-    # Need strikes from ~65000 to ~82000
-    needed_strikes = range(65000, 83000, 1000)
-    needed_syms = [s for s, info in chain.items()
-                   if info["strike"] in needed_strikes]
-    print(f"  Fetching 1h candles for {len(needed_syms)} ATM-range symbols...")
+    # Build chain from price_db keys
+    import re
+    chain = {}
+    for sym in price_db:
+        m = re.match(r'([CP])-BTC-(\d+)-290526', sym)
+        if m:
+            chain[sym] = {"strike": int(m.group(2)), "type": "CE" if m.group(1) == "C" else "PE"}
+    print(f"  {len(chain)} symbols in chain")
 
-    price_db = defaultdict(dict)  # {symbol: {ts: close_price}}
-    for i, sym in enumerate(needed_syms):
-        candles = fetch_option_candles(sym, resolution, start_ts, end_ts)
-        for c in candles:
-            price_db[sym][c["time"]] = c["close"]
-        if (i + 1) % 10 == 0:
-            print(f"    {i+1}/{len(needed_syms)} done")
-    print(f"  Done. {sum(len(v) for v in price_db.values())} total price points")
-
-    # Save price DB
-    price_db_serializable = {k: dict(v) for k, v in price_db.items()}
-    with open(os.path.join(data_dir, "option_prices_may.json"), "w") as f:
-        json.dump(price_db_serializable, f)
-    print("  Saved to option_prices_may.json")
+    needed_syms = [s for s in chain if chain[s]["strike"] in range(65000, 83000, 1000)]
+    print(f"  Using {len(needed_syms)} ATM-range symbols")
 
     # Build mock token→symbol mapping (numeric tokens)
     token_to_symbol = {}
@@ -302,7 +298,7 @@ def run():
             import traceback; traceback.print_exc()
             break
 
-        if idx % 168 == 0 or idx == len(btc_candles) - 1:
+        if idx % 1440 == 0 or idx == len(btc_candles) - 1:
             dt = pendulum.from_timestamp(ts)
             print(f"  [{dt.format('MM-DD HH:mm')}] T{strategy.tier} "
                   f"CE={strategy.ce.status.name if strategy.ce.status else 'FLAT':>7} "
