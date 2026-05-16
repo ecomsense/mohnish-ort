@@ -15,6 +15,7 @@ class Engine:
 
     def _on_reconnect(self) -> None:
         self.ws.subscribe([self._token])
+        self.strategy._resubscribe_tokens()
 
     def run(self) -> None:
         log.info("Engine started")
