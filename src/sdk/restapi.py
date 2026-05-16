@@ -3,13 +3,14 @@ from constants import CNFG, get_logger
 from sdk.models import Order
 from broker_ai.delta import api_helper
 from broker_ai.delta.delta import Delta
+from broker_ai.delta.api_helper import CachingProxy
 
 log = get_logger(__name__)
 
 SANDBOX_URL = "https://api-testnet.india.delta.exchange"
 
 
-def get_broker() -> Delta:
+def get_broker() -> CachingProxy:
     api_key = CNFG.get("api_key")
     api_secret = CNFG.get("secret")
     missing = []
@@ -24,7 +25,7 @@ def get_broker() -> Delta:
             api_helper.BASE_URL = SANDBOX_URL
         broker = Delta(api_key=api_key, api_secret=api_secret)
         if broker.authenticate():
-            return broker
+            return CachingProxy(broker)
         raise RuntimeError("Delta Exchange authentication failed — check API key/secret validity")
     except Exception as e:
         log.error(f"unable to create broker object {e}")
@@ -33,10 +34,10 @@ def get_broker() -> Delta:
 
 
 class Restapi:
-    api_object: Delta | None = None
+    api_object: CachingProxy | None = None
 
     @classmethod
-    def api(cls) -> Delta:
+    def api(cls) -> CachingProxy:
         if cls.api_object is None:
             cls.api_object = get_broker()
         return cls.api_object

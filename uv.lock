@@ -23,7 +23,7 @@ wheels = [
 [[package]]
 name = "broker-ai"
 version = "0.1.0"
-source = { git = "https://github.com/pannet1/broker-ai#5e9cf8b6766b206ea834fc7b66b232aef4b158f5" }
+source = { git = "https://github.com/pannet1/broker-ai#b927f3ca9ecfa3578aa371e57bd1dd4f85ad68d5" }
 dependencies = [
     { name = "delta-rest-client" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
