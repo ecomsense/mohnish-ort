@@ -962,8 +962,8 @@ wheels = [
 
 [[package]]
 name = "toolkit"
-version = "1.1.5"
-source = { git = "https://github.com/pannet1/toolkit#c7b5790246d5e6381792830af34a0158d04e7071" }
+version = "0.0.0"
+source = { git = "https://github.com/pannet1/toolkit#f12a3ce526ea2d330f412ccfe76cfbe8c13e0ff2" }
 
 [[package]]
 name = "typing-extensions"
