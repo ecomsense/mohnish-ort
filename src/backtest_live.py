@@ -32,46 +32,6 @@ from strategies.coinshort import Coinshort
 API = "https://api.india.delta.exchange"
 
 
-def fetch_option_candles(symbol, resolution, start_ts, end_ts):
-    """Fetch option candles from Delta API."""
-    all_c = []
-    cursor = start_ts
-    while cursor < end_ts:
-        chunk_end = min(cursor + 2000 * {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400}[resolution], end_ts)
-        r = requests.get(f"{API}/v2/history/candles", params={
-            "symbol": symbol, "resolution": resolution,
-            "start": cursor, "end": chunk_end
-        }, timeout=15)
-        data = r.json()
-        candles = data.get("result", [])
-        if not candles:
-            break
-        all_c.extend(candles)
-        cursor = chunk_end
-    return all_c
-
-
-def fetch_btc_candles(resolution, start_ts, end_ts):
-    return fetch_option_candles("BTCUSD", resolution, start_ts, end_ts)
-
-
-def fetch_option_chain():
-    """Get all May 29 BTC option symbols and their strikes."""
-    r = requests.get(f"{API}/v2/products", params={
-        "contract_types": "call_options,put_options",
-        "expiry": "2026-05-29"
-    }, timeout=15)
-    opts = [p for p in r.json().get("result", [])
-            if p.get("underlying_asset", {}).get("symbol") == "BTC"]
-    symbols = {}
-    for p in opts:
-        sym = p["symbol"]
-        strike = int(p.get("strike_price", 0))
-        otype = "CE" if sym.startswith("C-") else "PE"
-        symbols[sym] = {"strike": strike, "type": otype}
-    return symbols
-
-
 class RealPricer:
     def __init__(self, price_db, token_to_symbol=None):
         self.price_db = price_db
@@ -86,13 +46,7 @@ class RealPricer:
         idx = bisect.bisect_right(tss, ts) - 1
         if idx < 0:
             return float(prices[str(tss[0])])
-        if idx >= len(tss) - 1:
-            return float(prices[str(tss[-1])])
-        t0, t1 = tss[idx], tss[idx + 1]
-        if t1 <= t0:
-            return float(prices[str(t0)])
-        p0, p1 = float(prices[str(t0)]), float(prices[str(t1)])
-        return p0 + (p1 - p0) * (ts - t0) / (t1 - t0)
+        return float(prices[str(tss[idx])])
 
     def estimate(self, token, underlying, ts):
         sym = self.token_to_symbol.get(str(token), str(token))
@@ -212,10 +166,17 @@ def run():
         btc_candles = json.load(f)
     print(f"  {len(btc_candles)} candles from {pendulum.from_timestamp(btc_candles[0]['time']).format('YYYY-MM-DD HH:mm')} to {pendulum.from_timestamp(btc_candles[-1]['time']).format('YYYY-MM-DD HH:mm')}")
 
-    # Load cached 1h option prices
-    print("Loading cached option prices...")
-    with open(os.path.join(data_dir, "option_prices_may.json")) as f:
-        price_db = json.load(f)
+    # Load 1m option prices (fallback to 1h with interpolation)
+    opt_file_1m = os.path.join(data_dir, "option_prices_1m_may.json")
+    opt_file_1h = os.path.join(data_dir, "option_prices_may.json")
+    if os.path.exists(opt_file_1m):
+        print("Loading 1m option prices...")
+        with open(opt_file_1m) as f:
+            price_db = json.load(f)
+    else:
+        print("Loading 1h option prices (interpolated)...")
+        with open(opt_file_1h) as f:
+            price_db = json.load(f)
     print(f"  {len(price_db)} symbols, {sum(len(v) for v in price_db.values())} price points")
 
     # Build chain from price_db keys

@@ -6,24 +6,17 @@
 main.py
   ├─ ensure_paths()              # create data/ dir, copy settings if missing
   ├─ init_logging()              # AsyncLogger (console or file)
-  ├─ wait(entry_time)            # sleep until 09:15
+  ├─ wait(entry_time)            # sleep until configured start time
   │
   ├─ Wsocket(api_key, api_secret) → ws.connect(threaded=True)
-  │
-  ├─ config = CNFG["strategy"]   # from data/settings.yml
+  ├─ config = CNFG["strategy"]
   ├─ base   = CNFG["base_instrument"]
-  │
   ├─ Symbol(exchange="DELTA", symbol="BTC", data_path=S_DATA)
-  │     ├─ _load_config()        # read delta.yaml (download_url)
-  │     └─ load()                # data/DELTA_BTC.csv or download from Delta API
-  │
   ├─ Restapi(config["quantity"])
-  │     └─ Delta(api_key, secret) → authenticate()
-  │
   ├─ Builder.build(config, symbols, api, ws, underlying_token, symbol)
   │     ├─ OrderManager(ws, symbols, api, config)
   │     └─ Coinshort(config, symbols, api, om, token, symbol)
-  │           └─ load_state()    # restore tier, bounds, legs from JSON
+  │           └─ load_state() + _resubscribe_tokens()
   │
   └─ Engine(strategy, ws, underlying_token).run()
         ├─ ws.subscribe([underlying_token])
@@ -33,78 +26,55 @@ main.py
              blink()
 ```
 
-## Tick Cycle (current — implemented)
+## Tick Cycle
 
 ```
-Coinshort.tick(ws)
+Coinshort.tick(underlying_price)
   │
-  ├─ 1. bn_ltp = ws.ltp.get(str(underlying_token))
-  │      if bn_ltp == 0: return
+  ├─ 1. if price == 0: return
   │
-  ├─ 2. for each leg (CE, PE):
-  │      om.manage_leg(opt, underlying_price)
-  │        ├─ SHORT + SL COMPLETE → flip to LONG (enter SAR)
-  │        ├─ LONG + target hit → shift strike (enter_short same type)
-  │        ├─ LONG + TTL exceeded + in profit → shift strike
-  │        ├─ LONG + SL COMPLETE → flip to SHORT
-  │        └─ SHIFTED + SL COMPLETE → FLAT
+  ├─ 2. if bounds empty:
+  │      ├─ _enter_straddle() → OM.enter_short(CE) + OM.enter_short(PE)
+  │      └─ _finalize_entry() → calc premium, set bounds
   │
-  ├─ 3. if underlying crosses bound + leg is LONG:
-  │      tier += 1, run T_upper/T_lower protocol
-  │      (sell satellite option on opposite side, close T(x-2) satellite)
+  ├─ 3. for each leg (CE, PE): OM.manage_leg(opt, price)
+  │      ├─ SHORT + SL complete → BUY MARKET (close short) + BUY MARKET (open long) + place SELL SL
+  │      ├─ LONG + target hit → modify SELL SL→MARKET, enter_short(new ATM)
+  │      ├─ LONG + TTL + profit → modify SELL SL→MARKET, enter_short(new ATM)
+  │      ├─ LONG + SL complete → enter_short(new ATM)
+  │      └─ SHIFTED + SL complete → FLAT
   │
-  └─ 4. save_state() → JSON to disk
+  ├─ 4. for each satellite: SHIFTED + SL complete → FLAT
+  │
+  ├─ 5. T2 check: bound breached + stretched leg LONG → tier++, satellite protocol
+  │
+  └─ 6. save_state() → JSON to disk
 ```
 
-See [SPEC.md](../SPEC.md#architecture) for the full detailed architecture diagram.
-
-## Order Placement Detail
+## SAR Cycle Detail (qty=1)
 
 ```
-OrderManager._enter_short(strike, option_type)
-  symbol = build_symbol(strike, option_type)
-  token  = get_token(symbol)
-  ws.subscribe([token])
-
-  price = wait for WS tick → timeout 500ms
-
-  short_id = api.order_place(symbol, "SELL", "MARKET", qty)
-  sl_id    = api.order_place(symbol, "BUY", "SL", qty*2,
-                              trigger_price=price+SL,
-                              price=price+SL+slippage)
-
-  return ExecutionResult(short_id, sl_id, price, strike)
+SHORT (sold 1 contract)
+  ├─ BUY SL at entry + stop_loss (qty=1)
+  │
+  ├─ SL triggers → BUY fills 1 (close short)
+  │            → BUY MARKET 1 (open long) via explicit enter_long
+  │            → place SELL SL for long (qty=1)
+  │
+  ├─ LONG →
+  │    ├─ target/TTL → modify SELL SL→MARKET → exits long
+  │    │            → enter_short(new ATM strike)
+  │    └─ SL triggers → SELL fills 1 (close long)
+  │                 → enter_short(new ATM strike)
+  │
+  └─ SHORT again at new strike
 ```
 
-## State Machine Visual
+## T2 Protocol
 
 ```
-         INITIAL ENTRY (SHORT CE + SHORT PE)
-                    │
-         ┌──────────┴──────────┐
-         │                     │
-    CE SL hit            PE SL hit
-         │                     │
-    CE=LONG               PE=LONG
-    PE=SHORT              CE=SHORT
-         │                     │
-    ┌────┼────┐           ┌────┼────┐
-    │    │    │           │    │    │
-  SL   TGT  TTL        SL   TGT  TTL
-    │    │    │           │    │    │
-  SHORT SFTD FLAT      SHORT SFTD FLAT
-         │                     │
-         └──────────┬──────────┘
-                    │
-             T2 trigger (underlying
-             crosses bound + leg=LONG)
-                    │
-              T_upper or T_lower protocol
-              (shift opposite leg)
-
-## Open Flow Issues
-
-- **B3**: SL modification on target/TTL hit (`order_modify` to MARKET) races with SL trigger — order should be cancelled first, then market exit placed.
-- **B1/D3**: `_close_satellite(tier=1)` hardcodes PE close. For lower breach T3, CE should close instead.
-- **B2**: `_entry_ce_id` / `_entry_pe_id` not persisted — restart during straddle entry loses tracking.
+Bound breach + stretched leg LONG:
+  ├─ _close_satellite(tier-2, counter_leg) → modify SL→MARKET
+  ├─ enter_short(underlying, counter_leg) → adds to satellites[]
+  └─ bounds.append([price + premium/2, price - premium/2])
 ```

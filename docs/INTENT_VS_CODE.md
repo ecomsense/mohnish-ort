@@ -1,53 +1,59 @@
 # Intent vs Code: Gap Analysis
 
+## Fixed Bugs
+
+| Bug | Description | Fix |
+|-----|-------------|-----|
+| B1 | `_close_satellite(1)` always closed PE | Added `counter_leg` param; T3 upper→closes PE, T-3 lower→closes CE |
+| B2 | Entry order IDs not persisted | Added `_entry_ce_id`/`_entry_pe_id` to `save_state()`/`load_state()` |
+| B3 | `order_modify` races with SL | Not a bug — `order_modify` is the correct pattern per no-cancel discipline |
+| SL qty | SL was `qty * 2` instead of `qty` | Changed to `qty=1`, added explicit MARKET BUY for SAR long entry |
+
 ## T1 — Rolling SAR
 
-| Trader Intent | Code Location | Status |
-|---|---|---|
-| SHORT → SL hit → flip to LONG | `order_manager.py:112-132` | ✅ |
-| LONG → SL hit → flip back to SHORT | `order_manager.py:172-191` | ✅ |
-| LONG → target hit → roll (modify SL→MARKET) | `order_manager.py:135-158` | ✅ |
-| LONG → TTL exceeded + profit → roll | `order_manager.py:159-185` | ✅ |
+| Intent | Code | Status |
+|--------|------|--------|
+| SHORT→SL→LONG | `order_manager.py:112-140` | ✅ qty=1, explicit enter_long |
+| LONG→target→roll | `order_manager.py:142-159` | ✅ tag="target_exit" |
+| LONG→TTL→roll | `order_manager.py:161-186` | ✅ tag="ttl_exit" |
+| LONG→SL→SHORT | `order_manager.py:187-206` | ✅ |
 
 ## T2 / T-2 — First Breach
 
-| Trader Intent | Code Location | Status |
-|---|---|---|
-| Upper breach + CE LONG → sell PE counter-leg | `coinshort.py:207-232` | ✅ |
-| Lower breach + PE LONG → sell CE counter-leg | `coinshort.py:234-259` | ✅ |
-| Expand bounds | `coinshort.py:228-231, 255-258` | ✅ |
-| Skip if satellite exists at this tier | `coinshort.py:208, 235` | ✅ |
+| Intent | Code | Status |
+|--------|------|--------|
+| Upper breach + CE LONG → sell PE | `coinshort.py:218-243` | ✅ |
+| Lower breach + PE LONG → sell CE | `coinshort.py:245-270` | ✅ |
+| Expand bounds | `coinshort.py:240-242, 256-258` | ✅ bounds = premium/2 |
 
 ## T3 / T-3 — Second Breach
 
-| Trader Intent | Code Location | Status |
-|---|---|---|
-| Modify T1 counter-leg SL → MARKET (exit) | `_close_satellite(1, counter_leg)` → `coinshort.py:192-199` | ✅ **Fixed B1** |
-| Sell new counter-leg satellite | `coinshort.py:212-227, 239-254` | ✅ |
-| Expand bounds | `coinshort.py:228-231, 255-258` | ✅ |
+| Intent | Code | Status |
+|--------|------|--------|
+| Modify T1 counter-leg SL→MARKET | `_close_satellite(1, counter_leg)` → `coinshort.py:205-212` | ✅ dispatches on direction |
+| Sell new counter-leg satellite | `coinshort.py:222-243, 249-270` | ✅ |
+| Expand bounds | `coinshort.py:240-242, 256-258` | ✅ |
 
 ## T4+ / T-4+ — Further Breaches
 
-| Trader Intent | Code Location | Status |
-|---|---|---|
-| Modify tier-2 satellite SL → MARKET | `_close_satellite(tier>=2)` → `coinshort.py:200-205` | ✅ |
-| Sell new counter-leg satellite | `coinshort.py:212-227, 239-254` | ✅ |
-| Expand bounds | `coinshort.py:228-231, 255-258` | ✅ |
+| Intent | Code | Status |
+|--------|------|--------|
+| Modify tier-2 satellite SL→MARKET | `_close_satellite(tier>=2)` → `coinshort.py:213-218` | ✅ |
+| Sell new satellite, expand bounds | `coinshort.py:222-258` | ✅ |
 
----
+## Order Discipline
 
-## Order Discipline — Never Cancel
+| Rule | Evidence |
+|------|----------|
+| Never cancel | No `order_cancel` in any management path |
+| Exit via modify to MARKET | All exits use `order_modify(order_type="MARKET")` |
+| Satellite close uses modify | `_close_satellite`: `order_modify` on the SL |
 
-| Principle | Code Evidence |
-|---|---|
-| No order_cancel anywhere in management path | All exits use `order_modify(..., order_type="MARKET")` to trigger immediate fill on existing SL |
-| SLs stay in place until they fire or get modified | `order_manager.py:137, 157` — modify to MARKET |
-| Satellite close uses same modify-to-MARKET pattern | `coinshort.py:194, 202` — `order_modify` on the SL |
+## Backtest Validation
 
-## Historical Bug Status
-
-| Bug | Status | Fix |
-|---|---|---|
-| **B1** — `_close_satellite(1)` hardcoded PE | **Fixed** | Added `counter_leg` param. T3 upper closes PE, T-3 lower closes CE. |
-| **B2** — Entry order IDs not persisted | **Fixed** | `_entry_ce_id` / `_entry_pe_id` saved/loaded in state. |
-| **B3** — SL modify races trigger | **Not a bug** | `order_modify` is correct. When target/TTL hit, modifying the SL to MARKET triggers immediate fill. Both outcomes (modify wins / SL triggers) achieve the same exit. No cancel needed. |
+| Test | Result |
+|------|--------|
+| April BS backtest (backtest.py) | Deprecated — use live backtest only |
+| May real-price backtest (1h) | Total P&L +18950 per BTC |
+| May real-price backtest (1m) | Total P&L +5667 per BTC |
+| 33 unit tests | ✅ Pass |
