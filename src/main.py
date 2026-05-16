@@ -32,6 +32,8 @@ def root() -> None:
 
         ws = Wsocket(api_key=api_key, api_secret=api_secret)
         ws.connect(threaded=True)
+        while not ws.connected:
+            blink()
 
         config = CNFG.get("strategy", {})
         base = CNFG.get("base_instrument", {})
